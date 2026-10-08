@@ -139,6 +139,107 @@ class JanelaCadastroVeiculos(tk.Toplevel):
         ).pack()
     
     
+
+    def exportar_veiculos(self):
+        """Exporta os veículos para Excel"""
+        from tkinter import filedialog, messagebox
+        import pandas as pd
+        
+        veiculos = self.gerenciador.obter_todos()
+        if not veiculos:
+            messagebox.showwarning("Aviso", "Não há veículos para exportar!")
+            return
+            
+        caminho = filedialog.asksaveasfilename(
+            defaultextension=".xlsx",
+            filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")],
+            title="Exportar Veículos"
+        )
+        
+        if not caminho:
+            return
+            
+        try:
+            df = pd.DataFrame(veiculos)
+            df.to_excel(caminho, index=False)
+            messagebox.showinfo("Sucesso", f"Veículos exportados com sucesso para:\n{caminho}")
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao exportar veículos:\n{e}")
+
+    def importar_veiculos(self):
+        """Importa veículos de uma planilha Excel ou CSV"""
+        from tkinter import filedialog, messagebox
+        import pandas as pd
+        
+        caminho = filedialog.askopenfilename(
+            filetypes=[
+                ("Planilhas", "*.xlsx;*.xls;*.csv"),
+                ("Excel", "*.xlsx;*.xls"),
+                ("CSV", "*.csv")
+            ],
+            title="Selecione a planilha de Veículos"
+        )
+        
+        if not caminho:
+            return
+            
+        try:
+            if caminho.endswith('.csv'):
+                df = pd.read_csv(caminho)
+            else:
+                df = pd.read_excel(caminho)
+                
+            # Limpa espaços nas colunas
+            df.columns = df.columns.str.strip().str.upper()
+            
+            # Mapeamento para PLACA
+            col_placa = 'PLACA' if 'PLACA' in df.columns else None
+            if not col_placa:
+                messagebox.showerror("Erro", "A planilha não possui a coluna 'PLACA'.")
+                return
+                
+            # Identifica colunas opcionais
+            col_tipo = 'MARCA' if 'MARCA' in df.columns else 'TIPO' if 'TIPO' in df.columns else 'FROTA' if 'FROTA' in df.columns else None
+            col_km = 'KM ATUAL' if 'KM ATUAL' in df.columns else 'KM' if 'KM' in df.columns else None
+            col_modelo = 'MODELO' if 'MODELO' in df.columns else None
+            col_cor = 'COR' if 'COR' in df.columns else None
+            
+            novos = 0
+            atualizados = 0
+            
+            veiculos_atuais = {v['placa'].upper() for v in self.gerenciador.obter_todos()}
+            
+            for idx, row in df.iterrows():
+                placa = str(row.get(col_placa, '')).strip().upper()
+                if not placa or placa == 'NAN': continue
+                
+                # Prepara dados
+                tipo = str(row.get(col_tipo, '')) if col_tipo else 'Indefinido'
+                
+                desc_parts = []
+                if col_modelo and pd.notna(row.get(col_modelo)): desc_parts.append(str(row.get(col_modelo)))
+                if col_cor and pd.notna(row.get(col_cor)): desc_parts.append(str(row.get(col_cor)))
+                descricao = ' - '.join(desc_parts)
+                
+                try:
+                    km = float(row.get(col_km, 0)) if col_km and pd.notna(row.get(col_km)) else 0
+                except:
+                    km = 0
+                    
+                if placa in veiculos_atuais:
+                    # Opcional: Atualizar km ou não fazer nada. Aqui apenas ignoramos ou contamos como já existente.
+                    pass
+                else:
+                    self.gerenciador.adicionar_veiculo(tipo, placa, descricao, km)
+                    novos += 1
+                    
+            self.atualizar_tabela()
+            self.atualizar_estatisticas()
+            messagebox.showinfo("Sucesso", f"Importação concluída!\n\nNovos veículos cadastrados: {novos}")
+            
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao ler arquivo:\n{e}")
+
     def atualizar_tabela(self):
         """
         Atualiza dados na tabela
