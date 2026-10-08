@@ -13,6 +13,7 @@ class NotaModel:
         try:
             self.conn = sqlite3.connect(self.db_path)
             self.conn.row_factory = sqlite3.Row
+            self.conn.execute("PRAGMA journal_mode=WAL;")
             return True
         except Exception as e:
             logging.error(f"Erro conectar notas: {e}")

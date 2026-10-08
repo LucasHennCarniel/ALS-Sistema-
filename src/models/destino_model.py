@@ -19,7 +19,8 @@ class DestinoModel:
         """Conecta ao banco SQLite e configura para retornar dicionários"""
         try:
             self.conn = sqlite3.connect(self.db_path)
-            self.conn.row_factory = sqlite3.Row # Retorna dicionarios ao invez de tuplas
+            self.conn.row_factory = sqlite3.Row
+            self.conn.execute("PRAGMA journal_mode=WAL;") # Retorna dicionarios ao invez de tuplas
             return True
         except Exception as e:
             import logging
