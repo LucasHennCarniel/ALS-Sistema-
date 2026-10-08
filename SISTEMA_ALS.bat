@@ -10,21 +10,21 @@ echo ==========================================================
 echo                   SISTEMA ALS - PAINEL
 echo ==========================================================
 echo.
-echo   Escolha uma opção:
+echo   Escolha uma opcao:
 echo.
 echo   [1] Iniciar Sistema Agora (Abre direto para uso)
-echo   [2] Gerar/Atualizar Executável (.exe)
+echo   [2] Gerar/Atualizar Executavel (.exe)
 echo   [0] Sair
 echo.
 echo ==========================================================
-set /p opcao="Digite o número da opção: "
+set /p opcao="Digite o numero da opcao: "
 
 if "%opcao%"=="1" goto INICIAR
 if "%opcao%"=="2" goto GERAR_EXE
 if "%opcao%"=="0" goto SAIR
 
 echo.
-echo Opção inválida!
+echo Opcao invalida!
 timeout /t 2 >nul
 goto MENU
 
@@ -33,7 +33,7 @@ goto MENU
 cls
 echo.
 echo Iniciando Sistema ALS...
-echo Verificando dependências...
+echo Verificando dependencias...
 python -c "import pandas, tkcalendar, openpyxl, reportlab" 2>nul
 if errorlevel 1 (
     echo Instalando pacotes necessarios...
@@ -43,7 +43,7 @@ echo.
 python src\main.py
 if errorlevel 1 (
     echo.
-    echo O programa encontrou um erro. Verifique acima.
+    echo O programa encontrou um erro. Verifique a janela.
     pause
 )
 goto MENU
@@ -53,12 +53,12 @@ goto MENU
 cls
 echo.
 echo ==========================================================
-echo              GERANDO EXECUTÁVEL DO SISTEMA
+echo              GERANDO EXECUTAVEL DO SISTEMA
 echo ==========================================================
 echo.
 echo  Este processo vai:
 echo   - Limpar cache antigo
-echo   - Compilar o código atual
+echo   - Compilar o codigo atual
 echo   - Criar a pasta SistemaALS_Atualizado
 echo.
 echo  Tempo estimado: 1 minuto.
@@ -71,7 +71,7 @@ if exist dist rmdir /s /q dist 2>nul
 
 echo.
 echo Compilando... (aguarde)
-pyinstaller --noconfirm --onefile --windowed --name "SistemaManutencaoALS" --icon="img/logo ALS.png" --add-data "img;img" --hidden-import "openpyxl" --hidden-import "reportlab" --hidden-import "PIL" --hidden-import "pandas" --hidden-import "tkcalendar" --log-level WARN src/main.py
+pyinstaller --noconfirm --onefile --windowed --name "SistemaManutencaoALS" --icon="img/logo ALS.png" --add-data "img;img" --hidden-import "openpyxl" --hidden-import "reportlab" --hidden-import "PIL" --hidden-import "pandas" --hidden-import "tkcalendar" --log-level WARN src\main.py
 
 if errorlevel 1 (
     echo.
@@ -94,7 +94,7 @@ if exist "data\sistema_als.db" copy /Y "data\sistema_als.db" "%PASTA_DIST%\data\
 xcopy "img\*.*" "%PASTA_DIST%\img\" /E /I /Y /Q >nul 2>&1
 
 echo.
-echo Concluído com Sucesso! A pasta '%PASTA_DIST%' está pronta.
+echo Concluido com Sucesso! A pasta '%PASTA_DIST%' esta pronta.
 echo.
 set /p abrir="Deseja abrir a pasta gerada agora? (S/N): "
 if /i "%abrir%"=="S" explorer "%PASTA_DIST%"
