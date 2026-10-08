@@ -783,9 +783,7 @@ class SistemaManutencao:
             return
             
         if len(selecao) > 1:
-            messagebox.showinfo("Dica", "Você selecionou múltiplos registros.
-
-Use o botão '🗑️ Excluir Múltiplos' para excluir vários de uma vez.")
+            messagebox.showinfo("Dica", "Você selecionou múltiplos registros.\n\nUse o botão '🗑️ Excluir Múltiplos' para excluir vários de uma vez.")
             return
             
         item = self.tree.item(selecao[0])
