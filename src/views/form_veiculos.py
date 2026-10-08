@@ -59,6 +59,19 @@ class JanelaCadastroVeiculos(tk.Toplevel):
             text="[Save] Salvar Tudo",
             command=self.salvar_dados
         ).pack(side=tk.RIGHT, padx=5)
+
+        ttk.Button(
+            frame_acoes, 
+            text="📥 Importar", 
+            command=self.importar_veiculos
+        ).pack(side=tk.RIGHT, padx=5)
+        
+        ttk.Button(
+            frame_acoes, 
+            text="📤 Exportar", 
+            command=self.exportar_veiculos
+        ).pack(side=tk.RIGHT, padx=5)
+
         
         # Frame pesquisa
         frame_pesquisa = ttk.Frame(self, padding="10")
