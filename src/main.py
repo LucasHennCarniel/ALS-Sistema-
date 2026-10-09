@@ -3,7 +3,10 @@ Sistema de Gestão de Manutenção de Frota - ALS
 Interface Gráfica Principal
 """
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog, simpledialog
+from tkinter import messagebox, filedialog
+import ttkbootstrap as ttk
+from ttkbootstrap.constants import *
+from tkinter import simpledialog
 from datetime import datetime
 import pandas as pd
 import os
@@ -110,52 +113,9 @@ class SistemaManutencao:
     
     
     def configurar_estilo(self):
-        """Configura estilo visual com a paleta da marca ALS"""
-        style = ttk.Style()
-        style.theme_use('clam')
-        
-        # Paleta de Cores ALS
-        ALS_VERDE = '#90E74A'
-        ALS_VERDE_HOVER = '#7CB53A'
-        ALS_AZUL = '#789DAB'
-        ALS_AZUL_HOVER = '#5B7A87'
-        BG_APP = '#F4F6F9'
-        BG_SURFACE = '#FFFFFF'
-        FG_DARK = '#2C3E50'
-        FG_LIGHT = '#FFFFFF'
-        
-        self.root.configure(bg=BG_APP)
-        
-        # Configuração global
-        style.configure('.', background=BG_APP, foreground=FG_DARK)
-        style.configure('TFrame', background=BG_APP)
-        style.configure('Surface.TFrame', background=BG_SURFACE)
-        
-        # Labels
-        style.configure('TLabel', background=BG_APP, font=('Segoe UI', 10))
-        style.configure('Surface.TLabel', background=BG_SURFACE, font=('Segoe UI', 10))
-        style.configure('Header.TLabel', font=('Segoe UI', 14, 'bold'), foreground=ALS_AZUL, background=BG_APP)
-        style.configure('Stats.TLabel', font=('Segoe UI', 10, 'bold'), foreground=ALS_AZUL, background=BG_APP)
-        
-        # Abas (Notebook)
-        style.configure('TNotebook', background=BG_APP, borderwidth=0)
-        style.configure('TNotebook.Tab', padding=[15, 8], font=('Segoe UI', 10, 'bold'), background=ALS_AZUL, foreground=FG_LIGHT, borderwidth=0)
-        style.map('TNotebook.Tab', background=[('selected', ALS_VERDE)], foreground=[('selected', FG_DARK)])
-        
-        # Tabela (Treeview)
-        style.configure('Treeview', background=BG_SURFACE, foreground=FG_DARK, rowheight=30, fieldbackground=BG_SURFACE, font=('Segoe UI', 9), borderwidth=0)
-        style.map('Treeview', background=[('selected', ALS_AZUL)], foreground=[('selected', FG_LIGHT)])
-        
-        style.configure('Treeview.Heading', font=('Segoe UI', 10, 'bold'), background=ALS_AZUL, foreground=FG_LIGHT, padding=5, borderwidth=0)
-        style.map('Treeview.Heading', background=[('active', ALS_AZUL_HOVER)])
-        
-        # Botões Padrão
-        style.configure('TButton', padding=6, font=('Segoe UI', 10, 'bold'), background=BG_SURFACE, foreground=FG_DARK, borderwidth=1, bordercolor=ALS_AZUL)
-        style.map('TButton', background=[('active', ALS_AZUL)], foreground=[('active', FG_LIGHT)])
-        
-        # Botões de Ação Principal (Verde)
-        style.configure('Accent.TButton', padding=6, font=('Segoe UI', 10, 'bold'), background=ALS_VERDE, foreground=FG_DARK, borderwidth=0)
-        style.map('Accent.TButton', background=[('active', ALS_VERDE_HOVER)])
+        """Configura estilo visual usando ttkbootstrap"""
+        # O ttkbootstrap gerencia todo o estilo automaticamente
+        pass
 
     def criar_interface(self):
         """
@@ -206,7 +166,7 @@ class SistemaManutencao:
         self.frame_stats = ttk.Frame(frame_topo)
         self.frame_stats.pack(pady=3)
         
-        self.label_stats = ttk.Label(self.frame_stats, style="Stats.TLabel", text="", font=('Arial', 9))
+        self.label_stats = ttk.Label(self.frame_stats, bootstyle=PRIMARY, text="", font=('Arial', 9))
         self.label_stats.pack()
         
         # ==== FRAME FILTROS ====
@@ -1430,7 +1390,8 @@ def main():
     """
     Função principal
     """
-    root = tk.Tk()
+    # Usando o ttkbootstrap com um tema moderno (cosmo, flatly, litera, journal, yeti)
+    root = ttk.Window(themename="cosmo")
     app = SistemaManutencao(root)
     root.mainloop()
 
