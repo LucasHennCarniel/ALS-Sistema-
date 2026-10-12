@@ -12,23 +12,23 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (
     TitleLabel, SubtitleLabel, CaptionLabel, BodyLabel,
     PrimaryPushButton, PushButton, SearchLineEdit, ComboBox,
-    TableWidget, CardWidget, SimpleCardWidget,
-    FluentIcon as FIF, InfoBar, InfoBarPosition, MessageBox
+    TableWidget, FluentIcon as FIF, InfoBar, MessageBox
 )
 
 from src.views_qt.dialogs import FormRegistroDialog
+from src.views_qt.theme_styles import ContrastCard
 
 
-class StatCard(CardWidget):
-    """Card de estatística moderno com alto contraste"""
+class StatCard(ContrastCard):
+    """Card de estatística moderno com fundo cinza-gelo e borda nítida"""
     def __init__(self, titulo, valor_inicial="0", icone="📊", parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 12, 18, 12)
-        layout.setSpacing(6)
+        layout.setSpacing(4)
         
         self.label_titulo = CaptionLabel(f"{icone}  {titulo}", self)
-        self.label_titulo.setFont(QFont('Segoe UI', 10))
+        self.label_titulo.setFont(QFont('Segoe UI', 10, QFont.DemiBold))
         
         self.label_valor = TitleLabel(str(valor_inicial), self)
         self.label_valor.setFont(QFont('Segoe UI', 20, QFont.Bold))
@@ -88,11 +88,12 @@ class ManutencaoView(QWidget):
         self.card_tempo = StatCard("Tempo Médio", "0 d", "⏱️", self)
         self.card_placas = StatCard("Placas Atendidas", "0", "🚛", self)
         
-        stats_layout.addWidget(self.card_total)
-        stats_layout.addWidget(self.card_servico)
-        stats_layout.addWidget(self.card_finalizados)
-        stats_layout.addWidget(self.card_tempo)
-        stats_layout.addWidget(self.card_placas)
+        self.cards = [
+            self.card_total, self.card_servico, self.card_finalizados,
+            self.card_tempo, self.card_placas
+        ]
+        for c in self.cards:
+            stats_layout.addWidget(c)
         layout.addLayout(stats_layout)
         
         # 3. Barra de Ações (Botões)
@@ -131,8 +132,8 @@ class ManutencaoView(QWidget):
         layout.addLayout(actions_layout)
         
         # 4. Barra de Filtros
-        filters_card = CardWidget(self)
-        filters_layout = QHBoxLayout(filters_card)
+        self.filters_card = ContrastCard(self)
+        filters_layout = QHBoxLayout(self.filters_card)
         filters_layout.setContentsMargins(14, 10, 14, 10)
         filters_layout.setSpacing(12)
         
@@ -155,13 +156,14 @@ class ManutencaoView(QWidget):
         filters_layout.addWidget(self.btn_limpar_filtro)
         
         filters_layout.addStretch()
-        layout.addWidget(filters_card)
+        layout.addWidget(self.filters_card)
         
         # 5. Tabela de Registros
         self.table = TableWidget(self)
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(8)
         self.table.setWordWrap(False)
+        self.table.setAlternatingRowColors(True)
         self.table.setColumnCount(len(self.COLUNAS))
         self.table.setHorizontalHeaderLabels(self.COLUNAS)
         self.table.verticalHeader().hide()
@@ -178,6 +180,12 @@ class ManutencaoView(QWidget):
         header.setStretchLastSection(True)
         
         layout.addWidget(self.table)
+
+    def atualizar_tema_cards(self, qss_tabela):
+        for c in self.cards:
+            c.atualizar_estilo()
+        self.filters_card.atualizar_estilo()
+        self.table.setStyleSheet(qss_tabela)
 
     def carregar_dados(self):
         """Carrega e popula a tabela com dados do banco"""
@@ -217,11 +225,11 @@ class ManutencaoView(QWidget):
                 if col_name == 'STATUS':
                     status_str = str(val).upper()
                     if 'FINALIZADO' in status_str:
-                        item.setForeground(QColor('#66BB6A'))
+                        item.setForeground(QColor('#2E7D32'))
                     elif 'MANUTENÇÃO' in status_str or 'SERVIÇO' in status_str:
-                        item.setForeground(QColor('#FFA726'))
+                        item.setForeground(QColor('#D84315'))
                     elif 'AGUARDANDO' in status_str:
-                        item.setForeground(QColor('#EF5350'))
+                        item.setForeground(QColor('#C62828'))
                         
                 self.table.setItem(row_idx, col_idx, item)
 

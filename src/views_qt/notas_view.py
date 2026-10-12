@@ -76,6 +76,7 @@ class NotasView(QWidget):
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(8)
         self.table.setWordWrap(False)
+        self.table.setAlternatingRowColors(True)
         self.table.setColumnCount(len(self.COLUNAS))
         self.table.setHorizontalHeaderLabels(self.COLUNAS)
         self.table.verticalHeader().hide()
@@ -91,6 +92,9 @@ class NotasView(QWidget):
         header.setStretchLastSection(True)
         
         layout.addWidget(self.table)
+
+    def atualizar_tema_cards(self, qss_tabela):
+        self.table.setStyleSheet(qss_tabela)
 
     def carregar_dados(self):
         try:
@@ -120,11 +124,11 @@ class NotasView(QWidget):
                 if col_idx == 3:
                     prio_str = str(val).upper()
                     if 'ALTA' in prio_str:
-                        item.setForeground(QColor('#EF5350'))
+                        item.setForeground(QColor('#C62828'))
                     elif 'MÉDIA' in prio_str or 'MEDIA' in prio_str:
-                        item.setForeground(QColor('#FFA726'))
+                        item.setForeground(QColor('#D84315'))
                     else:
-                        item.setForeground(QColor('#66BB6A'))
+                        item.setForeground(QColor('#2E7D32'))
                         
                 self.table.setItem(row_idx, col_idx, item)
 

@@ -11,23 +11,23 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (
     TitleLabel, CaptionLabel, BodyLabel,
     PrimaryPushButton, PushButton, SearchLineEdit,
-    TableWidget, CardWidget,
-    FluentIcon as FIF, InfoBar, MessageBox
+    TableWidget, FluentIcon as FIF, InfoBar, MessageBox
 )
 
 from src.views_qt.dialogs import FormVeiculoDialog
+from src.views_qt.theme_styles import ContrastCard
 
 
-class VeiculoStatCard(CardWidget):
+class VeiculoStatCard(ContrastCard):
     """Card de estatística para veículos com alto contraste"""
     def __init__(self, titulo, valor_inicial="0", icone="🚛", parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(18, 12, 18, 12)
-        layout.setSpacing(6)
+        layout.setSpacing(4)
         
         self.label_titulo = CaptionLabel(f"{icone}  {titulo}", self)
-        self.label_titulo.setFont(QFont('Segoe UI', 10))
+        self.label_titulo.setFont(QFont('Segoe UI', 10, QFont.DemiBold))
         
         self.label_valor = TitleLabel(str(valor_inicial), self)
         self.label_valor.setFont(QFont('Segoe UI', 20, QFont.Bold))
@@ -73,9 +73,9 @@ class VeiculosView(QWidget):
         self.card_ativos = VeiculoStatCard("Veículos Ativos", "0", "✅", self)
         self.card_inativos = VeiculoStatCard("Veículos Inativos", "0", "⛔", self)
         
-        stats_layout.addWidget(self.card_total)
-        stats_layout.addWidget(self.card_ativos)
-        stats_layout.addWidget(self.card_inativos)
+        self.cards = [self.card_total, self.card_ativos, self.card_inativos]
+        for c in self.cards:
+            stats_layout.addWidget(c)
         stats_layout.addStretch()
         layout.addLayout(stats_layout)
         
@@ -123,6 +123,7 @@ class VeiculosView(QWidget):
         self.table.setBorderVisible(True)
         self.table.setBorderRadius(8)
         self.table.setWordWrap(False)
+        self.table.setAlternatingRowColors(True)
         self.table.setColumnCount(len(self.COLUNAS))
         self.table.setHorizontalHeaderLabels(self.COLUNAS)
         self.table.verticalHeader().hide()
@@ -138,6 +139,11 @@ class VeiculosView(QWidget):
         header.setStretchLastSection(True)
         
         layout.addWidget(self.table)
+
+    def atualizar_tema_cards(self, qss_tabela):
+        for c in self.cards:
+            c.atualizar_estilo()
+        self.table.setStyleSheet(qss_tabela)
 
     def carregar_dados(self):
         """Carrega dados dos veículos"""
@@ -170,7 +176,7 @@ class VeiculosView(QWidget):
                     item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                     
                 if col_idx == 5:
-                    item.setForeground(QColor('#66BB6A') if ativo else QColor('#EF5350'))
+                    item.setForeground(QColor('#2E7D32') if ativo else QColor('#C62828'))
                     
                 self.table.setItem(row_idx, col_idx, item)
 
