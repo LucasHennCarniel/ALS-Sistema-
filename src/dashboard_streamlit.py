@@ -20,7 +20,7 @@ from src.controllers.veiculo_controller import VeiculoController
 from src.controllers.destino_controller import DestinoController
 from src.controllers.nota_controller import NotaController
 
-# Configuração da página Streamlit (Sem emojis informais)
+# Configuração da página Streamlit
 st.set_page_config(
     page_title="Dashboard Analítico ALS",
     page_icon=":material/analytics:",
@@ -29,9 +29,13 @@ st.set_page_config(
 )
 
 # Paleta Oficial ALS
-PALETA_ALS = ['#4CAF50', '#607D8B', '#789DAB', '#90E74A', '#2E7D32', '#455A64', '#0284C7', '#26A69A']
+PALETA_ALS = [
+    '#4CAF50', '#607D8B', '#789DAB', '#90E74A', 
+    '#2E7D32', '#455A64', '#0284C7', '#26A69A',
+    '#5C6BC0', '#8D6E63', '#78909C', '#66BB6A'
+]
 
-# Estilo CSS Corporativo (Estilo Power BI com barra de acento lateral e cinza suave)
+# Estilo CSS Corporativo
 st.markdown("""
 <style>
     .stApp {
@@ -65,7 +69,7 @@ st.markdown("""
         background-color: #EAEFF5;
         border: 1px solid #94A3B8 !important;
         border-radius: 8px !important;
-        padding: 10px;
+        padding: 12px;
     }
     .block-container {
         padding-top: 1.2rem;
@@ -91,29 +95,42 @@ def carregar_dados():
 
 
 def estilizar_grafico_pizza(fig, furo=0.0):
-    """Aplica borda nítida nas fatias da pizza/rosca e fundo cinza suave"""
+    """Aplica borda nítida nas fatias da pizza/rosca com legenda lateral sem cortar o círculo"""
     fig.update_traces(
         hole=furo,
         textposition='inside',
         textinfo='percent+label',
+        insidetextorientation='horizontal',
         marker=dict(
             line=dict(color='#1E293B', width=2)
         ),
-        pull=[0.03] * 15
+        pull=0.015
     )
     fig.update_layout(
         paper_bgcolor='#EAEFF5',
         plot_bgcolor='#EAEFF5',
-        font=dict(family="Segoe UI, sans-serif", size=13, color='#0F172A'),
-        margin=dict(t=20, b=20, l=20, r=20),
-        height=360,
-        legend=dict(orientation="h", yanchor="bottom", y=-0.15, xanchor="center", x=0.5)
+        font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
+        uniformtext_minsize=10,
+        uniformtext_mode='hide',
+        margin=dict(t=25, b=25, l=15, r=15),
+        height=400,
+        legend=dict(
+            orientation="v",
+            yanchor="middle",
+            y=0.5,
+            xanchor="left",
+            x=1.02,
+            font=dict(size=11, color='#1E293B'),
+            bgcolor='rgba(255,255,255,0.4)',
+            bordercolor='#CBD5E1',
+            borderwidth=1
+        )
     )
     return fig
 
 
 def estilizar_grafico_colunas(fig):
-    """Aplica borda nas colunas/barras e rótulos de valor no topo"""
+    """Aplica borda nas colunas/barras e margem superior folgada para não cortar números"""
     fig.update_traces(
         marker_line_color='#1E293B',
         marker_line_width=1.5,
@@ -123,10 +140,10 @@ def estilizar_grafico_colunas(fig):
     fig.update_layout(
         paper_bgcolor='#EAEFF5',
         plot_bgcolor='#EAEFF5',
-        font=dict(family="Segoe UI, sans-serif", size=13, color='#0F172A'),
-        margin=dict(t=35, b=20, l=20, r=20),
-        height=360,
-        xaxis=dict(showgrid=False, linecolor='#94A3B8'),
+        font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
+        margin=dict(t=45, b=30, l=20, r=20),
+        height=400,
+        xaxis=dict(showgrid=False, linecolor='#94A3B8', tickangle=-25),
         yaxis=dict(gridcolor='#CBD5E1', zerolinecolor='#94A3B8')
     )
     return fig
@@ -142,12 +159,12 @@ def renderizar_aba_frota(veiculos, notas):
     for col in ['placa', 'tipo_veiculo', 'descricao']:
         if col not in df_v.columns:
             df_v[col] = ''
-        df_v[col] = df_v[col].fillna('').astype(str)
+        df_v[col] = df_v[col].fillna('').astype(str).str.strip().str.upper()
 
     df_v['ultima_km_num'] = pd.to_numeric(df_v.get('ultima_km', 0), errors='coerce').fillna(0)
     df_v['STATUS_TXT'] = df_v.get('ativo', 1).apply(lambda x: 'ATIVO' if x else 'INATIVO')
 
-    # Filtros na barra lateral para a Frota (Com ícone vetorial Material)
+    # Filtros na barra lateral para a Frota
     st.sidebar.subheader(":material/filter_alt: Filtros da Frota")
     busca_v = st.sidebar.text_input("Buscar Placa ou Descrição", key="busca_frota")
     tipos_disp = sorted([t for t in df_v['tipo_veiculo'].unique() if t.strip()])
@@ -250,14 +267,14 @@ def renderizar_aba_frota(veiculos, notas):
                     color='Tipo de Veículo',
                     color_discrete_sequence=PALETA_ALS
                 )
-                fig2.update_traces(marker_line_color='#1E293B', marker_line_width=1.5, textposition='outside')
+                fig2.update_traces(marker_line_color='#1E293B', marker_line_width=1.5, textposition='outside', cliponaxis=False)
                 fig2.update_layout(
                     paper_bgcolor='#EAEFF5',
                     plot_bgcolor='#EAEFF5',
-                    font=dict(family="Segoe UI, sans-serif", size=13, color='#0F172A'),
+                    font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
                     showlegend=False,
-                    margin=dict(t=20, b=20, l=20, r=30),
-                    height=360
+                    margin=dict(t=25, b=25, l=20, r=45),
+                    height=400
                 )
             else:
                 fig2 = px.bar(
@@ -302,7 +319,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     for col in ['PLACA', 'VEÍCULO', 'STATUS', 'DESTINO PROGRAMADO', 'SERVIÇO A EXECUTAR', 'NRº OF', 'OBS']:
         if col not in df.columns:
             df[col] = ''
-        df[col] = df[col].fillna('').astype(str)
+        df[col] = df[col].fillna('').astype(str).str.strip()
 
     df['DIAS_NUM'] = pd.to_numeric(df.get('DIAS', 0), errors='coerce').fillna(0)
     df['DATA_ENTRADA_DT'] = pd.to_datetime(df['DATA ENTRADA'], format='%d/%m/%Y', dayfirst=True, errors='coerce')
@@ -431,11 +448,11 @@ def renderizar_aba_manutencoes(df, veiculos):
                     x='Quantidade', y='Veículo', orientation='h', text='Quantidade',
                     color='Veículo', color_discrete_sequence=PALETA_ALS
                 )
-                fig_v.update_traces(marker_line_color='#1E293B', marker_line_width=1.5, textposition='outside')
+                fig_v.update_traces(marker_line_color='#1E293B', marker_line_width=1.5, textposition='outside', cliponaxis=False)
                 fig_v.update_layout(
                     paper_bgcolor='#EAEFF5', plot_bgcolor='#EAEFF5',
-                    font=dict(family="Segoe UI, sans-serif", size=13, color='#0F172A'),
-                    showlegend=False, height=360
+                    font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
+                    showlegend=False, margin=dict(t=25, b=25, l=20, r=45), height=400
                 )
             else:
                 fig_v = px.bar(
