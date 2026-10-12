@@ -1,22 +1,20 @@
 """
-Diálogos modernos com QFluentWidgets para o Sistema ALS
+Diálogos corporativos com QFluentWidgets e Ícones Vetoriais Fluent
 """
 from datetime import datetime
 from PySide6.QtCore import Qt, QDate
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout, 
-    QFormLayout, QDialog, QFileDialog
+    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout
 )
 from qfluentwidgets import (
     MessageBoxBase, SubtitleLabel, BodyLabel, LineEdit, 
-    TextEdit, ComboBox, PrimaryPushButton, PushButton, 
-    DateEdit, DoubleSpinBox, SpinBox, SwitchButton, FluentIcon as FIF,
-    InfoBar, InfoBarPosition
+    TextEdit, ComboBox, DateEdit, DoubleSpinBox, SwitchButton,
+    IconWidget, FluentIcon as FIF
 )
 
 
 class FormRegistroDialog(MessageBoxBase):
-    """Diálogo moderno para Adicionar / Editar Registro de Manutenção"""
+    """Diálogo corporativo para Adicionar / Editar Registro de Manutenção"""
     
     def __init__(self, parent=None, registro=None, veiculo_ctrl=None, destino_ctrl=None):
         super().__init__(parent)
@@ -24,11 +22,18 @@ class FormRegistroDialog(MessageBoxBase):
         self.veiculo_ctrl = veiculo_ctrl
         self.destino_ctrl = destino_ctrl
         
-        titulo_texto = "✏️ Editar Registro" if registro else "➕ Novo Registro de Manutenção"
+        header_row = QHBoxLayout()
+        header_row.setSpacing(10)
+        icone = FIF.EDIT if registro else FIF.ADD
+        icon_w = IconWidget(icone, self)
+        icon_w.setFixedSize(22, 22)
+        titulo_texto = "Editar Registro de Manutenção" if registro else "Novo Registro de Manutenção"
         self.titleLabel = SubtitleLabel(titulo_texto, self)
-        self.viewLayout.addWidget(self.titleLabel)
+        header_row.addWidget(icon_w)
+        header_row.addWidget(self.titleLabel)
+        header_row.addStretch()
+        self.viewLayout.addLayout(header_row)
         
-        # Form Container
         form_layout = QGridLayout()
         form_layout.setSpacing(12)
         
@@ -109,14 +114,11 @@ class FormRegistroDialog(MessageBoxBase):
         
         self.viewLayout.addLayout(form_layout)
         
-        # Preencher se for edição
         if self.registro:
             self._preencher_dados()
             
-        # Conexão automática: ao mudar placa, preenche veículo e última km
         self.combo_placa.currentTextChanged.connect(self._ao_mudar_placa)
         
-        # Botões padrão do MessageBoxBase
         self.yesButton.setText("Salvar")
         self.cancelButton.setText("Cancelar")
         self.widget.setMinimumWidth(700)
@@ -156,7 +158,6 @@ class FormRegistroDialog(MessageBoxBase):
 
     def _preencher_dados(self):
         r = self.registro
-        # Data
         d_str = str(r.get('DATA') or r.get('data') or '')
         try:
             if d_str and '/' in d_str:
@@ -165,7 +166,6 @@ class FormRegistroDialog(MessageBoxBase):
         except Exception:
             pass
             
-        # Placa
         placa = str(r.get('PLACA') or r.get('placa') or '')
         idx = self.combo_placa.findText(placa)
         if idx >= 0:
@@ -174,17 +174,14 @@ class FormRegistroDialog(MessageBoxBase):
             self.combo_placa.addItem(placa)
             self.combo_placa.setCurrentText(placa)
             
-        # KM
         try:
             km = float(r.get('KM') or r.get('km') or 0)
             self.input_km.setValue(km)
         except Exception:
             pass
             
-        # Veículo
         self.input_veiculo.setText(str(r.get('VEÍCULO') or r.get('veiculo') or ''))
         
-        # Destino
         dest = str(r.get('DESTINO PROGRAMADO') or r.get('destino_programado') or '')
         idx_d = self.combo_destino.findText(dest)
         if idx_d >= 0:
@@ -192,13 +189,11 @@ class FormRegistroDialog(MessageBoxBase):
         else:
             self.combo_destino.setCurrentText(dest)
             
-        # Status
         st = str(r.get('STATUS') or r.get('status') or 'EM MANUTENÇÃO')
         idx_st = self.combo_status.findText(st)
         if idx_st >= 0:
             self.combo_status.setCurrentIndex(idx_st)
             
-        # Entrada
         ent_str = str(r.get('DATA ENTRADA') or r.get('data_entrada') or '')
         try:
             if ent_str and '/' in ent_str:
@@ -207,14 +202,8 @@ class FormRegistroDialog(MessageBoxBase):
         except Exception:
             pass
             
-        # Saída
         self.input_saida.setText(str(r.get('DATA SAÍDA') or r.get('data_saida') or ''))
-        
-        # OF
-        self.input_of = self.input_of
         self.input_of.setText(str(r.get('NRº OF') or r.get('nr_of') or ''))
-        
-        # Serviço & Obs
         self.input_servico.setText(str(r.get('SERVIÇO A EXECUTAR') or r.get('servico_executar') or ''))
         self.input_obs.setText(str(r.get('OBS') or r.get('obs') or ''))
 
@@ -241,15 +230,23 @@ class FormRegistroDialog(MessageBoxBase):
 
 
 class FormVeiculoDialog(MessageBoxBase):
-    """Diálogo moderno para Adicionar / Editar Veículo"""
+    """Diálogo corporativo para Adicionar / Editar Veículo"""
     
     def __init__(self, parent=None, veiculo=None):
         super().__init__(parent)
         self.veiculo = veiculo
         
-        titulo_texto = "✏️ Editar Veículo" if veiculo else "➕ Novo Veículo na Frota"
+        header_row = QHBoxLayout()
+        header_row.setSpacing(10)
+        icone = FIF.EDIT if veiculo else FIF.CAR
+        icon_w = IconWidget(icone, self)
+        icon_w.setFixedSize(22, 22)
+        titulo_texto = "Editar Veículo da Frota" if veiculo else "Novo Veículo na Frota"
         self.titleLabel = SubtitleLabel(titulo_texto, self)
-        self.viewLayout.addWidget(self.titleLabel)
+        header_row.addWidget(icon_w)
+        header_row.addWidget(self.titleLabel)
+        header_row.addStretch()
+        self.viewLayout.addLayout(header_row)
         
         form_layout = QGridLayout()
         form_layout.setSpacing(12)
@@ -323,15 +320,23 @@ class FormVeiculoDialog(MessageBoxBase):
 
 
 class FormNotaDialog(MessageBoxBase):
-    """Diálogo moderno para Adicionar / Editar Nota"""
+    """Diálogo corporativo para Adicionar / Editar Nota"""
     
     def __init__(self, parent=None, nota=None):
         super().__init__(parent)
         self.nota = nota
         
-        titulo_texto = "✏️ Editar Nota" if nota else "➕ Nova Anotação / Lembrete"
+        header_row = QHBoxLayout()
+        header_row.setSpacing(10)
+        icone = FIF.EDIT if nota else FIF.ADD
+        icon_w = IconWidget(icone, self)
+        icon_w.setFixedSize(22, 22)
+        titulo_texto = "Editar Anotação" if nota else "Nova Anotação Interna"
         self.titleLabel = SubtitleLabel(titulo_texto, self)
-        self.viewLayout.addWidget(self.titleLabel)
+        header_row.addWidget(icon_w)
+        header_row.addWidget(self.titleLabel)
+        header_row.addStretch()
+        self.viewLayout.addLayout(header_row)
         
         form_layout = QGridLayout()
         form_layout.setSpacing(12)

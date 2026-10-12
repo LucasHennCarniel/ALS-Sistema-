@@ -1,5 +1,6 @@
 """
 Interface de Notas e Anotações com QFluentWidgets (Fluent Design)
+Visual Corporativo com Ícones Vetoriais Fluent
 """
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
@@ -10,14 +11,14 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (
     TitleLabel, CaptionLabel,
     PrimaryPushButton, PushButton, SearchLineEdit,
-    TableWidget, FluentIcon as FIF, InfoBar, MessageBox
+    TableWidget, IconWidget, FluentIcon as FIF, InfoBar, MessageBox
 )
 
 from src.views_qt.dialogs import FormNotaDialog
 
 
 class NotasView(QWidget):
-    """View de Notas e Anotações com design Fluent"""
+    """View de Notas e Anotações com design Fluent Corporativo"""
     
     COLUNAS = ["ID", "DATA", "CATEGORIA", "PRIORIDADE", "TÍTULO", "CONTEÚDO"]
     LARGURAS = [60, 140, 130, 120, 220, 350]
@@ -35,8 +36,12 @@ class NotasView(QWidget):
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(16)
         
-        # 1. Cabeçalho
+        # 1. Cabeçalho com Ícone Vetorial
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(10)
+        header_icon = IconWidget(FIF.CHAT, self)
+        header_icon.setFixedSize(26, 26)
+        header_layout.addWidget(header_icon)
         header_layout.addWidget(TitleLabel("Notas e Anotações Internas", self))
         header_layout.addStretch()
         layout.addLayout(header_layout)

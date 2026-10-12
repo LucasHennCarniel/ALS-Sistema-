@@ -1,5 +1,6 @@
 """
 Interface de Dashboard Streamlit embutida no menu lateral do PySide6 (QFluentWidgets)
+Visual Corporativo com Ícones Vetoriais Fluent
 """
 import os
 import sys
@@ -11,7 +12,7 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from qfluentwidgets import (
     TitleLabel, BodyLabel, PrimaryPushButton, PushButton,
-    FluentIcon as FIF, InfoBar
+    IconWidget, FluentIcon as FIF, InfoBar
 )
 
 from src.views_qt.theme_styles import ContrastCard
@@ -30,7 +31,6 @@ class DashboardView(QWidget):
         
         self._init_ui()
         
-        # Timer para verificar quando o servidor Streamlit subiu
         self.timer_check = QTimer(self)
         self.timer_check.setInterval(800)
         self.timer_check.timeout.connect(self._verificar_servidor)
@@ -40,21 +40,25 @@ class DashboardView(QWidget):
         layout.setContentsMargins(20, 16, 20, 16)
         layout.setSpacing(12)
         
-        # Barra de Topo do Dashboard
-        self.header_card = ContrastCard(self)
+        # Barra de Topo Corporativa do Dashboard
+        self.header_card = ContrastCard(self, cor_acento="#4CAF50")
         header_layout = QHBoxLayout(self.header_card)
         header_layout.setContentsMargins(16, 10, 16, 10)
         header_layout.setSpacing(12)
         
-        self.title_label = TitleLabel("📊 Dashboard Analítico (Streamlit)", self.header_card)
+        header_icon = IconWidget(FIF.PIE_SINGLE, self.header_card)
+        header_icon.setFixedSize(24, 24)
+        header_layout.addWidget(header_icon)
+        
+        self.title_label = TitleLabel("Dashboard Analítico", self.header_card)
         header_layout.addWidget(self.title_label)
         
-        self.status_label = BodyLabel("⏳ Inicializando motor gráfico...", self.header_card)
+        self.status_label = BodyLabel("Inicializando motor gráfico...", self.header_card)
         header_layout.addWidget(self.status_label)
         
         header_layout.addStretch()
         
-        self.btn_recarregar = PrimaryPushButton("Atualizar Dashboard", self.header_card, FIF.SYNC)
+        self.btn_recarregar = PrimaryPushButton("Atualizar Indicadores", self.header_card, FIF.SYNC)
         self.btn_recarregar.clicked.connect(self.recarregar_dashboard)
         header_layout.addWidget(self.btn_recarregar)
         
@@ -74,8 +78,8 @@ class DashboardView(QWidget):
             <html>
             <body style="background-color:#D5DFE8; color:#1E293B; font-family:'Segoe UI', sans-serif;
                          display:flex; flex-direction:column; align-items:center; justify-content:center; height:90vh; margin:0;">
-                <h2 style="margin-bottom:8px;">📊 Carregando Dashboard Analítico ALS...</h2>
-                <p style="color:#475569;">Iniciando servidor Streamlit integrado ao banco de dados SQLite.</p>
+                <h2 style="margin-bottom:8px; font-weight:600;">Carregando Painel de Indicadores ALS...</h2>
+                <p style="color:#475569;">Conectando ao motor analítico e banco de dados SQLite.</p>
             </body>
             </html>
         """)
@@ -96,7 +100,7 @@ class DashboardView(QWidget):
         if self._porta_em_uso():
             if not self.servidor_pronto:
                 self.servidor_pronto = True
-                self.status_label.setText("✅ Conectado em tempo real")
+                self.status_label.setText("Status: Conectado em tempo real")
                 self.webview.setUrl(QUrl(self.URL))
             return
 
@@ -123,16 +127,16 @@ class DashboardView(QWidget):
                     stderr=subprocess.DEVNULL,
                     creationflags=creationflags
                 )
-                self.status_label.setText("⏳ Iniciando Streamlit...")
+                self.status_label.setText("Status: Iniciando servidor analítico...")
                 self.timer_check.start()
             except Exception as e:
-                self.status_label.setText(f"❌ Erro ao iniciar Streamlit: {e}")
+                self.status_label.setText(f"Erro ao iniciar servidor: {e}")
 
     def _verificar_servidor(self):
         if self._porta_em_uso():
             self.timer_check.stop()
             self.servidor_pronto = True
-            self.status_label.setText("✅ Online em tempo real")
+            self.status_label.setText("Status: Online em tempo real")
             self.webview.setUrl(QUrl(self.URL))
 
     def recarregar_dashboard(self):

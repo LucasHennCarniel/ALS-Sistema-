@@ -1,7 +1,7 @@
 """
-Dashboard Analítico Interativo - Sistema de Gestão de Manutenção ALS
+Dashboard Analítico Corporativo - Sistema de Gestão de Manutenção ALS
 Desenvolvido com Streamlit + Plotly consumindo os Controllers MVC e SQLite WAL
-Com gráficos em Pizza (com borda destacada), Colunas Verticais, Barras e seletores de estilo!
+Visual Executivo com Ícones Vetoriais Material Design (Zero Emojis)
 """
 import os
 import sys
@@ -9,7 +9,6 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-import plotly.graph_objects as go
 
 # Garante que o diretório raiz está no sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -21,18 +20,18 @@ from src.controllers.veiculo_controller import VeiculoController
 from src.controllers.destino_controller import DestinoController
 from src.controllers.nota_controller import NotaController
 
-# Configuração da página Streamlit
+# Configuração da página Streamlit (Sem emojis informais)
 st.set_page_config(
-    page_title="Dashboard ALS - Gestão de Frota",
-    page_icon="📊",
+    page_title="Dashboard Analítico ALS",
+    page_icon=":material/analytics:",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
 # Paleta Oficial ALS
-PALETA_ALS = ['#4CAF50', '#607D8B', '#789DAB', '#90E74A', '#2E7D32', '#455A64', '#FFA726', '#26A69A']
+PALETA_ALS = ['#4CAF50', '#607D8B', '#789DAB', '#90E74A', '#2E7D32', '#455A64', '#0284C7', '#26A69A']
 
-# Estilo CSS customizado com a paleta Cinza Suave e bordas destacadas
+# Estilo CSS Corporativo (Estilo Power BI com barra de acento lateral e cinza suave)
 st.markdown("""
 <style>
     .stApp {
@@ -46,13 +45,17 @@ st.markdown("""
     div[data-testid="stMetric"] {
         background-color: #EAEFF5;
         border: 1px solid #94A3B8;
-        border-radius: 10px;
+        border-left: 4px solid #4CAF50;
+        border-radius: 8px;
         padding: 14px 18px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.06);
     }
     div[data-testid="stMetricLabel"] {
         color: #475569 !important;
-        font-weight: 600 !important;
+        font-weight: 700 !important;
+        text-transform: uppercase;
+        font-size: 0.78rem !important;
+        letter-spacing: 0.04em;
     }
     div[data-testid="stMetricValue"] {
         color: #0F172A !important;
@@ -61,7 +64,7 @@ st.markdown("""
     div[data-testid="stVerticalBlockBorderWrapper"] {
         background-color: #EAEFF5;
         border: 1px solid #94A3B8 !important;
-        border-radius: 10px !important;
+        border-radius: 8px !important;
         padding: 10px;
     }
     .block-container {
@@ -94,7 +97,7 @@ def estilizar_grafico_pizza(fig, furo=0.0):
         textposition='inside',
         textinfo='percent+label',
         marker=dict(
-            line=dict(color='#1E293B', width=2)  # Borda escura destacada em cada fatia da pizza
+            line=dict(color='#1E293B', width=2)
         ),
         pull=[0.03] * 15
     )
@@ -144,12 +147,12 @@ def renderizar_aba_frota(veiculos, notas):
     df_v['ultima_km_num'] = pd.to_numeric(df_v.get('ultima_km', 0), errors='coerce').fillna(0)
     df_v['STATUS_TXT'] = df_v.get('ativo', 1).apply(lambda x: 'ATIVO' if x else 'INATIVO')
 
-    # Filtros na barra lateral para a Frota
-    st.sidebar.subheader("🚛 Filtros da Frota")
+    # Filtros na barra lateral para a Frota (Com ícone vetorial Material)
+    st.sidebar.subheader(":material/filter_alt: Filtros da Frota")
     busca_v = st.sidebar.text_input("Buscar Placa ou Descrição", key="busca_frota")
     tipos_disp = sorted([t for t in df_v['tipo_veiculo'].unique() if t.strip()])
     filtro_tipo_v = st.sidebar.multiselect("Tipo / Marca do Veículo", options=tipos_disp, default=[], key="tipo_frota")
-    filtro_status_v = st.sidebar.multiselect("Status do Veículo", options=['ATIVO', 'INATIVO'], default=[], key="status_frota")
+    filtro_status_v = st.sidebar.multiselect("Status Operacional", options=['ATIVO', 'INATIVO'], default=[], key="status_frota")
 
     df_vf = df_v.copy()
     if busca_v.strip():
@@ -164,17 +167,17 @@ def renderizar_aba_frota(veiculos, notas):
     if filtro_status_v:
         df_vf = df_vf[df_vf['STATUS_TXT'].isin(filtro_status_v)]
 
-    # KPIs da Frota
+    # KPIs Corporativos da Frota
     total_v = len(df_vf)
     ativos_v = len(df_vf[df_vf['STATUS_TXT'] == 'ATIVO'])
     inativos_v = total_v - ativos_v
     tipos_unicos = df_vf['tipo_veiculo'].nunique()
 
     k1, k2, k3, k4 = st.columns(4)
-    k1.metric("🚛 Total de Veículos (Filtrado)", f"{total_v}")
-    k2.metric("✅ Veículos Ativos", f"{ativos_v}")
-    k3.metric("⛔ Veículos Inativos", f"{inativos_v}")
-    k4.metric("🏷️ Categorias / Marcas", f"{tipos_unicos}")
+    k1.metric("Total de Veículos", f"{total_v}")
+    k2.metric("Veículos Ativos", f"{ativos_v}")
+    k3.metric("Veículos Inativos", f"{inativos_v}")
+    k4.metric("Categorias / Marcas", f"{tipos_unicos}")
 
     st.markdown("")
 
@@ -187,7 +190,7 @@ def renderizar_aba_frota(veiculos, notas):
     with col_esq:
         with st.container(border=True):
             c_head1, c_head2 = st.columns([2, 1])
-            c_head1.subheader("🍕 Proporção por Tipo (Pizza)")
+            c_head1.subheader(":material/pie_chart: Proporção por Categoria")
             estilo_g1 = c_head2.selectbox(
                 "Estilo",
                 ["Pizza com Borda", "Rosca com Borda", "Colunas"],
@@ -221,7 +224,7 @@ def renderizar_aba_frota(veiculos, notas):
     with col_dir:
         with st.container(border=True):
             c_head3, c_head4 = st.columns([2, 1])
-            c_head3.subheader("📊 Quantidade em Colunas")
+            c_head3.subheader(":material/bar_chart: Volume por Categoria (Colunas)")
             estilo_g2 = c_head4.selectbox(
                 "Estilo",
                 ["Colunas Verticais", "Barras Horizontais", "Pizza com Borda"],
@@ -272,7 +275,7 @@ def renderizar_aba_frota(veiculos, notas):
 
     # Tabela da Frota Filtrada
     with st.container(border=True):
-        st.subheader("📋 Lista de Veículos Filtrados")
+        st.subheader(":material/table_chart: Relação de Veículos da Frota")
         st.dataframe(
             df_vf[['placa', 'tipo_veiculo', 'descricao', 'ultima_km', 'data_cadastro', 'STATUS_TXT']].rename(columns={
                 'placa': 'PLACA',
@@ -291,13 +294,11 @@ def renderizar_aba_manutencoes(df, veiculos):
     """Renderiza os gráficos de Manutenção com filtros completos e seletores de estilo"""
     if df is None or df.empty:
         st.info(
-            "ℹ️ Ainda não há registros de manutenção lançados no banco. "
-            "Use a aba **'🚛 Panorama da Frota'** ao lado para explorar os gráficos de Pizza e Colunas dos seus veículos, "
-            "ou cadastre/importe uma manutenção na tela principal!"
+            "Nenhum registro de manutenção lançado no banco até o momento. "
+            "Utilize a guia 'Panorama da Frota' para visualizar a distribuição dos veículos cadastrados."
         )
         return
 
-    # Padroniza colunas
     for col in ['PLACA', 'VEÍCULO', 'STATUS', 'DESTINO PROGRAMADO', 'SERVIÇO A EXECUTAR', 'NRº OF', 'OBS']:
         if col not in df.columns:
             df[col] = ''
@@ -307,7 +308,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     df['DATA_ENTRADA_DT'] = pd.to_datetime(df['DATA ENTRADA'], format='%d/%m/%Y', dayfirst=True, errors='coerce')
 
     # Filtros na Barra Lateral
-    st.sidebar.subheader("🔍 Filtros de Manutenção")
+    st.sidebar.subheader(":material/filter_alt: Filtros de Manutenção")
     busca_texto = st.sidebar.text_input("Busca Rápida (Placa, Serviço, OF)", placeholder="Digite para filtrar...")
 
     opcoes_status = sorted([s for s in df['STATUS'].unique() if s.strip()])
@@ -356,7 +357,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     if usar_filtro_data and data_ini and data_fim:
         df_f = df_f[(df_f['DATA_ENTRADA_DT'].dt.date >= data_ini) & (df_f['DATA_ENTRADA_DT'].dt.date <= data_fim)]
 
-    # KPIs
+    # KPIs Corporativos
     total_reg = len(df_f)
     em_servico = len(df_f[df_f['STATUS'].str.upper().str.contains('MANUTENÇÃO|SERVIÇO|AGUARDANDO', na=False)])
     finalizados = len(df_f[df_f['STATUS'].str.upper().str.contains('FINALIZADO', na=False)])
@@ -364,11 +365,11 @@ def renderizar_aba_manutencoes(df, veiculos):
     placas_atendidas = df_f['PLACA'].replace('', pd.NA).dropna().nunique()
 
     k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("📊 Total Filtrado", f"{total_reg}")
-    k2.metric("⚙️ Em Serviço", f"{em_servico}")
-    k3.metric("✅ Finalizados", f"{finalizados}")
-    k4.metric("⏱️ Tempo Médio", f"{tempo_medio:.1f} dias")
-    k5.metric("🚛 Placas Atendidas", f"{placas_atendidas}")
+    k1.metric("Total Filtrado", f"{total_reg}")
+    k2.metric("Em Serviço", f"{em_servico}")
+    k3.metric("Finalizados", f"{finalizados}")
+    k4.metric("Tempo Médio", f"{tempo_medio:.1f} dias")
+    k5.metric("Placas Atendidas", f"{placas_atendidas}")
 
     st.markdown("")
 
@@ -378,7 +379,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     with g1:
         with st.container(border=True):
             ch1, ch2 = st.columns([2, 1])
-            ch1.subheader("🍕 Manutenções por Status")
+            ch1.subheader(":material/pie_chart: Distribuição por Status")
             tipo_g1 = ch2.selectbox(
                 "Tipo",
                 ["Pizza com Borda", "Rosca com Borda", "Colunas"],
@@ -408,7 +409,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     with g2:
         with st.container(border=True):
             ch3, ch4 = st.columns([2, 1])
-            ch3.subheader("📊 Manutenções por Veículo (Colunas)")
+            ch3.subheader(":material/bar_chart: Manutenções por Veículo")
             tipo_g2 = ch4.selectbox(
                 "Tipo",
                 ["Colunas Verticais", "Barras Horizontais", "Pizza com Borda"],
@@ -448,7 +449,7 @@ def renderizar_aba_manutencoes(df, veiculos):
 
     # Linha 2: Top 10 Placas em Colunas
     with st.container(border=True):
-        st.subheader("🚛 Top 10 Placas por Ocorrências e Dias Parados (Colunas)")
+        st.subheader(":material/local_shipping: Top 10 Placas por Ocorrências e Dias Parados")
         df_top_placas = (
             df_f[df_f['PLACA'] != '']
             .groupby('PLACA')
@@ -471,7 +472,7 @@ def renderizar_aba_manutencoes(df, veiculos):
 
     # Tabela Detalhada
     with st.container(border=True):
-        st.subheader("📋 Registros Filtrados")
+        st.subheader(":material/table_chart: Registros Filtrados")
         st.dataframe(df_f.drop(columns=['DIAS_NUM', 'DATA_ENTRADA_DT'], errors='ignore'), use_container_width=True, height=300)
 
 
@@ -480,20 +481,25 @@ def main():
 
     col_t1, col_t2 = st.columns([4, 1])
     with col_t1:
-        st.title("📊 Dashboard Analítico - ALS")
+        st.title(":material/analytics: Painel de Indicadores e Frota - ALS")
     with col_t2:
-        if st.button("🔄 Atualizar Dados", use_container_width=True):
+        if st.button(":material/refresh: Atualizar Dados", use_container_width=True):
             st.rerun()
 
-    # Se não houver manutenções ainda, abre direto na aba da Frota para mostrar os gráficos cheios
     if df is None or df.empty:
-        aba_frota, aba_manut = st.tabs(["🚛 Panorama da Frota (Pizza & Colunas)", "🔧 Indicadores de Manutenção"])
+        aba_frota, aba_manut = st.tabs([
+            ":material/local_shipping: Panorama da Frota",
+            ":material/build: Indicadores de Manutenção"
+        ])
         with aba_frota:
             renderizar_aba_frota(veiculos, notas)
         with aba_manut:
             renderizar_aba_manutencoes(df, veiculos)
     else:
-        aba_manut, aba_frota = st.tabs(["🔧 Indicadores de Manutenção (Pizza & Colunas)", "🚛 Panorama da Frota"])
+        aba_manut, aba_frota = st.tabs([
+            ":material/build: Indicadores de Manutenção",
+            ":material/local_shipping: Panorama da Frota"
+        ])
         with aba_manut:
             renderizar_aba_manutencoes(df, veiculos)
         with aba_frota:

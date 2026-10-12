@@ -1,5 +1,6 @@
 """
 Interface Principal de Registros de Manutenção com QFluentWidgets
+Visual Corporativo com Ícones Vetoriais Fluent
 """
 from datetime import datetime
 import pandas as pd
@@ -12,37 +13,15 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (
     TitleLabel, SubtitleLabel, CaptionLabel, BodyLabel,
     PrimaryPushButton, PushButton, SearchLineEdit, ComboBox,
-    TableWidget, FluentIcon as FIF, InfoBar, MessageBox
+    TableWidget, IconWidget, FluentIcon as FIF, InfoBar, MessageBox
 )
 
 from src.views_qt.dialogs import FormRegistroDialog
-from src.views_qt.theme_styles import ContrastCard
-
-
-class StatCard(ContrastCard):
-    """Card de estatística moderno com fundo cinza-gelo e borda nítida"""
-    def __init__(self, titulo, valor_inicial="0", icone="📊", parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 12, 18, 12)
-        layout.setSpacing(4)
-        
-        self.label_titulo = CaptionLabel(f"{icone}  {titulo}", self)
-        self.label_titulo.setFont(QFont('Segoe UI', 10, QFont.DemiBold))
-        
-        self.label_valor = TitleLabel(str(valor_inicial), self)
-        self.label_valor.setFont(QFont('Segoe UI', 20, QFont.Bold))
-        
-        layout.addWidget(self.label_titulo)
-        layout.addWidget(self.label_valor)
-        self.setFixedHeight(86)
-
-    def set_valor(self, valor):
-        self.label_valor.setText(str(valor))
+from src.views_qt.theme_styles import ContrastCard, CorporateStatCard
 
 
 class ManutencaoView(QWidget):
-    """View de Manutenções estilo Fluent Design"""
+    """View de Manutenções estilo Fluent Design Corporativo"""
     
     COLUNAS = [
         "ID", "DATA", "PLACA", "KM", "VEÍCULO", 
@@ -71,22 +50,26 @@ class ManutencaoView(QWidget):
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(16)
         
-        # 1. Cabeçalho com Título
+        # 1. Cabeçalho com Ícone Vetorial e Título
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(10)
+        header_icon = IconWidget(FIF.DOCUMENT, self)
+        header_icon.setFixedSize(26, 26)
         title = TitleLabel("Registros de Manutenção", self)
+        header_layout.addWidget(header_icon)
         header_layout.addWidget(title)
         header_layout.addStretch()
         layout.addLayout(header_layout)
         
-        # 2. Cards de Estatísticas
+        # 2. Cards Corporativos de Estatísticas (Estilo Power BI + Ícones Vetoriais)
         stats_layout = QHBoxLayout()
         stats_layout.setSpacing(12)
         
-        self.card_total = StatCard("Total de Registros", "0", "📊", self)
-        self.card_servico = StatCard("Em Serviço", "0", "⚙️", self)
-        self.card_finalizados = StatCard("Finalizados", "0", "✅", self)
-        self.card_tempo = StatCard("Tempo Médio", "0 d", "⏱️", self)
-        self.card_placas = StatCard("Placas Atendidas", "0", "🚛", self)
+        self.card_total = CorporateStatCard("Total de Registros", "0", FIF.DOCUMENT, "#607D8B", self)
+        self.card_servico = CorporateStatCard("Em Serviço", "0", FIF.SETTING, "#D97706", self)
+        self.card_finalizados = CorporateStatCard("Finalizados", "0", FIF.ACCEPT, "#4CAF50", self)
+        self.card_tempo = CorporateStatCard("Tempo Médio", "0 d", FIF.HISTORY, "#0284C7", self)
+        self.card_placas = CorporateStatCard("Placas Atendidas", "0", FIF.CAR, "#475569", self)
         
         self.cards = [
             self.card_total, self.card_servico, self.card_finalizados,
@@ -96,7 +79,7 @@ class ManutencaoView(QWidget):
             stats_layout.addWidget(c)
         layout.addLayout(stats_layout)
         
-        # 3. Barra de Ações (Botões)
+        # 3. Barra de Ações (Botões com Ícones Vetoriais)
         actions_layout = QHBoxLayout()
         actions_layout.setSpacing(8)
         
@@ -116,15 +99,15 @@ class ManutencaoView(QWidget):
         self.btn_atualizar.clicked.connect(self.carregar_dados)
         actions_layout.addWidget(self.btn_atualizar)
         
-        self.btn_relatorio = PushButton("Relatório", self, FIF.DOCUMENT)
+        self.btn_relatorio = PushButton("Relatório PDF", self, FIF.DOCUMENT)
         self.btn_relatorio.clicked.connect(self._abrir_relatorio)
         actions_layout.addWidget(self.btn_relatorio)
         
-        self.btn_exportar = PushButton("Exportar", self, FIF.SHARE)
+        self.btn_exportar = PushButton("Exportar Excel", self, FIF.SHARE)
         self.btn_exportar.clicked.connect(self._exportar_dados)
         actions_layout.addWidget(self.btn_exportar)
         
-        self.btn_importar = PushButton("Importar", self, FIF.DOWNLOAD)
+        self.btn_importar = PushButton("Importar Planilha", self, FIF.DOWNLOAD)
         self.btn_importar.clicked.connect(self._importar_dados)
         actions_layout.addWidget(self.btn_importar)
         
@@ -151,7 +134,7 @@ class ManutencaoView(QWidget):
         self.combo_filtro_status.setFixedWidth(180)
         filters_layout.addWidget(self.combo_filtro_status)
         
-        self.btn_limpar_filtro = PushButton("Limpar", self)
+        self.btn_limpar_filtro = PushButton("Limpar Filtros", self)
         self.btn_limpar_filtro.clicked.connect(self._limpar_filtros)
         filters_layout.addWidget(self.btn_limpar_filtro)
         
@@ -172,7 +155,6 @@ class ManutencaoView(QWidget):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.itemDoubleClicked.connect(self._on_row_double_click)
         
-        # Configura larguras das colunas para não cortar cabeçalhos
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
         for i, width in enumerate(self.LARGURAS_COLUNAS):
@@ -221,7 +203,6 @@ class ManutencaoView(QWidget):
                 item = QTableWidgetItem(str(val))
                 item.setTextAlignment(Qt.AlignCenter if col_name in ['ID', 'DATA', 'PLACA', 'STATUS', 'DIAS', 'DATA ENTRADA', 'DATA SAÍDA'] else Qt.AlignLeft | Qt.AlignVCenter)
                 
-                # Cores de Status com alto contraste
                 if col_name == 'STATUS':
                     status_str = str(val).upper()
                     if 'FINALIZADO' in status_str:

@@ -1,5 +1,6 @@
 """
 Interface de Gestão de Veículos com QFluentWidgets (Fluent Design)
+Visual Corporativo com Ícones Vetoriais Fluent
 """
 import pandas as pd
 from PySide6.QtCore import Qt
@@ -11,38 +12,15 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (
     TitleLabel, CaptionLabel, BodyLabel,
     PrimaryPushButton, PushButton, SearchLineEdit,
-    TableWidget, FluentIcon as FIF, InfoBar, MessageBox
+    TableWidget, IconWidget, FluentIcon as FIF, InfoBar, MessageBox
 )
 
 from src.views_qt.dialogs import FormVeiculoDialog
-from src.views_qt.theme_styles import ContrastCard
-
-
-class VeiculoStatCard(ContrastCard):
-    """Card de estatística para veículos com alto contraste"""
-    def __init__(self, titulo, valor_inicial="0", icone="🚛", parent=None):
-        super().__init__(parent)
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 12, 18, 12)
-        layout.setSpacing(4)
-        
-        self.label_titulo = CaptionLabel(f"{icone}  {titulo}", self)
-        self.label_titulo.setFont(QFont('Segoe UI', 10, QFont.DemiBold))
-        
-        self.label_valor = TitleLabel(str(valor_inicial), self)
-        self.label_valor.setFont(QFont('Segoe UI', 20, QFont.Bold))
-        
-        layout.addWidget(self.label_titulo)
-        layout.addWidget(self.label_valor)
-        self.setFixedHeight(86)
-        self.setMinimumWidth(200)
-
-    def set_valor(self, valor):
-        self.label_valor.setText(str(valor))
+from src.views_qt.theme_styles import CorporateStatCard
 
 
 class VeiculosView(QWidget):
-    """View de Veículos com design Fluent"""
+    """View de Veículos com design Fluent Corporativo"""
     
     COLUNAS = ["TIPO / MARCA", "PLACA", "DESCRIÇÃO", "ÚLTIMA KM", "DATA CADASTRO", "STATUS"]
     LARGURAS = [150, 110, 260, 120, 140, 100]
@@ -60,21 +38,26 @@ class VeiculosView(QWidget):
         layout.setContentsMargins(24, 20, 24, 20)
         layout.setSpacing(16)
         
-        # 1. Cabeçalho
+        # 1. Cabeçalho com Ícone Vetorial
         header_layout = QHBoxLayout()
+        header_layout.setSpacing(10)
+        header_icon = IconWidget(FIF.CAR, self)
+        header_icon.setFixedSize(26, 26)
+        header_layout.addWidget(header_icon)
         header_layout.addWidget(TitleLabel("Gestão de Veículos da Frota", self))
         header_layout.addStretch()
         layout.addLayout(header_layout)
         
-        # 2. Estatísticas
+        # 2. Estatísticas com Ícones Vetoriais e Borda de Acento
         stats_layout = QHBoxLayout()
         stats_layout.setSpacing(12)
-        self.card_total = VeiculoStatCard("Total de Veículos", "0", "🚛", self)
-        self.card_ativos = VeiculoStatCard("Veículos Ativos", "0", "✅", self)
-        self.card_inativos = VeiculoStatCard("Veículos Inativos", "0", "⛔", self)
+        self.card_total = CorporateStatCard("Total de Veículos", "0", FIF.CAR, "#607D8B", self)
+        self.card_ativos = CorporateStatCard("Veículos Ativos", "0", FIF.ACCEPT, "#4CAF50", self)
+        self.card_inativos = CorporateStatCard("Veículos Inativos", "0", FIF.CLOSE, "#EF5350", self)
         
         self.cards = [self.card_total, self.card_ativos, self.card_inativos]
         for c in self.cards:
+            c.setMinimumWidth(220)
             stats_layout.addWidget(c)
         stats_layout.addStretch()
         layout.addLayout(stats_layout)
@@ -109,7 +92,6 @@ class VeiculosView(QWidget):
         
         actions_layout.addStretch()
         
-        # Pesquisa rápida
         self.search_input = SearchLineEdit(self)
         self.search_input.setPlaceholderText("Pesquisar placa, tipo, descrição...")
         self.search_input.textChanged.connect(self._filtrar)
@@ -146,7 +128,6 @@ class VeiculosView(QWidget):
         self.table.setStyleSheet(qss_tabela)
 
     def carregar_dados(self):
-        """Carrega dados dos veículos"""
         try:
             self.veiculos_atuais = self.ctrl.obter_todos() or []
             self._render_tabela(self.veiculos_atuais)
