@@ -20,8 +20,8 @@ from src.views_qt.dialogs import FormNotaDialog
 class NotasView(QWidget):
     """View de Notas e Anotações com design Fluent Corporativo"""
     
-    COLUNAS = ["ID", "DATA", "CATEGORIA", "PRIORIDADE", "TÍTULO", "CONTEÚDO"]
-    LARGURAS = [60, 140, 130, 120, 220, 350]
+    COLUNAS = ["ID", "DATA PROGRAMADA", "PLACA / ASSUNTO", "STATUS / PRIORIDADE", "OBSERVAÇÃO / CONTEÚDO"]
+    LARGURAS = [60, 150, 180, 160, 420]
     
     def __init__(self, nota_ctrl, parent=None):
         super().__init__(parent)
@@ -69,7 +69,7 @@ class NotasView(QWidget):
         actions_layout.addStretch()
         
         self.search_input = SearchLineEdit(self)
-        self.search_input.setPlaceholderText("Pesquisar título, conteúdo, categoria...")
+        self.search_input.setPlaceholderText("Pesquisar placa, observação, status...")
         self.search_input.textChanged.connect(self._filtrar)
         self.search_input.setFixedWidth(280)
         actions_layout.addWidget(self.search_input)
@@ -112,13 +112,12 @@ class NotasView(QWidget):
         self.table.setRowCount(len(lista))
         for row_idx, n in enumerate(lista):
             nid = n.get('id', '')
-            data_criacao = n.get('data_criacao', '')
-            cat = n.get('categoria', 'GERAL')
-            prio = n.get('prioridade', 'MÉDIA')
-            titulo = n.get('titulo', '')
-            conteudo = n.get('conteudo', '')
+            data_prog = n.get('data_programada') or n.get('data_criacao') or ''
+            placa = n.get('placa') or n.get('titulo') or ''
+            status = n.get('status') or n.get('prioridade') or 'PENDENTE'
+            obs = n.get('observacao') or n.get('conteudo') or ''
             
-            valores = [nid, data_criacao, cat, prio, titulo, conteudo]
+            valores = [nid, data_prog, placa, status, obs]
             for col_idx, val in enumerate(valores):
                 item = QTableWidgetItem(str(val))
                 if col_idx in [0, 1, 2, 3]:
@@ -127,10 +126,10 @@ class NotasView(QWidget):
                     item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                     
                 if col_idx == 3:
-                    prio_str = str(val).upper()
-                    if 'ALTA' in prio_str:
+                    st_str = str(val).upper()
+                    if 'ALTA' in st_str or 'URGENTE' in st_str:
                         item.setForeground(QColor('#C62828'))
-                    elif 'MÉDIA' in prio_str or 'MEDIA' in prio_str:
+                    elif 'PENDENTE' in st_str or 'MÉDIA' in st_str:
                         item.setForeground(QColor('#D84315'))
                     else:
                         item.setForeground(QColor('#2E7D32'))
@@ -145,9 +144,9 @@ class NotasView(QWidget):
             
         filtradas = [
             n for n in self.notas_atuais
-            if termo in str(n.get('titulo', '')).lower()
-            or termo in str(n.get('conteudo', '')).lower()
-            or termo in str(n.get('categoria', '')).lower()
+            if termo in str(n.get('placa', '')).lower()
+            or termo in str(n.get('observacao', '')).lower()
+            or termo in str(n.get('status', '')).lower()
         ]
         self._render_tabela(filtradas)
 

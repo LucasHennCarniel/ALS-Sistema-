@@ -341,27 +341,27 @@ class FormNotaDialog(MessageBoxBase):
         form_layout = QGridLayout()
         form_layout.setSpacing(12)
         
-        form_layout.addWidget(BodyLabel("Título:"), 0, 0)
-        self.input_titulo = LineEdit(self)
-        self.input_titulo.setPlaceholderText("Título da anotação")
-        form_layout.addWidget(self.input_titulo, 0, 1)
+        form_layout.addWidget(BodyLabel("Data Programada:"), 0, 0)
+        self.input_data = DateEdit(self)
+        self.input_data.setDisplayFormat("dd/MM/yyyy")
+        self.input_data.setDate(QDate.currentDate())
+        form_layout.addWidget(self.input_data, 0, 1)
         
-        form_layout.addWidget(BodyLabel("Categoria:"), 1, 0)
-        self.combo_cat = ComboBox(self)
-        self.combo_cat.addItems(["GERAL", "PEÇAS", "URGENTE", "MANUTENÇÃO", "FORNECEDOR"])
-        form_layout.addWidget(self.combo_cat, 1, 1)
+        form_layout.addWidget(BodyLabel("Placa / Assunto:"), 1, 0)
+        self.input_placa = LineEdit(self)
+        self.input_placa.setPlaceholderText("Placa ou assunto da anotação")
+        form_layout.addWidget(self.input_placa, 1, 1)
         
-        form_layout.addWidget(BodyLabel("Prioridade:"), 2, 0)
-        self.combo_prio = ComboBox(self)
-        self.combo_prio.addItems(["BAIXA", "MÉDIA", "ALTA"])
-        self.combo_prio.setCurrentText("MÉDIA")
-        form_layout.addWidget(self.combo_prio, 2, 1)
+        form_layout.addWidget(BodyLabel("Status / Prioridade:"), 2, 0)
+        self.combo_status = ComboBox(self)
+        self.combo_status.addItems(["PENDENTE", "EM ANDAMENTO", "CONCLUÍDO", "URGENTE"])
+        form_layout.addWidget(self.combo_status, 2, 1)
         
-        form_layout.addWidget(BodyLabel("Conteúdo:"), 3, 0)
-        self.input_conteudo = TextEdit(self)
-        self.input_conteudo.setPlaceholderText("Escreva os detalhes aqui...")
-        self.input_conteudo.setFixedHeight(120)
-        form_layout.addWidget(self.input_conteudo, 3, 1)
+        form_layout.addWidget(BodyLabel("Observação:"), 3, 0)
+        self.input_obs = TextEdit(self)
+        self.input_obs.setPlaceholderText("Escreva os detalhes aqui...")
+        self.input_obs.setFixedHeight(120)
+        form_layout.addWidget(self.input_obs, 3, 1)
         
         self.viewLayout.addLayout(form_layout)
         
@@ -374,24 +374,29 @@ class FormNotaDialog(MessageBoxBase):
 
     def _preencher_dados(self):
         n = self.nota
-        self.input_titulo.setText(str(n.get('titulo', '')))
+        d_str = str(n.get('data_programada') or '')
+        try:
+            if d_str and '/' in d_str:
+                p = d_str.split('/')
+                self.input_data.setDate(QDate(int(p[2]), int(p[1]), int(p[0])))
+        except Exception:
+            pass
+            
+        self.input_placa.setText(str(n.get('placa') or n.get('titulo') or ''))
         
-        cat = str(n.get('categoria', 'GERAL'))
-        idx_c = self.combo_cat.findText(cat)
-        if idx_c >= 0:
-            self.combo_cat.setCurrentIndex(idx_c)
+        st = str(n.get('status') or n.get('prioridade') or 'PENDENTE')
+        idx_s = self.combo_status.findText(st)
+        if idx_s >= 0:
+            self.combo_status.setCurrentIndex(idx_s)
             
-        prio = str(n.get('prioridade', 'MÉDIA'))
-        idx_p = self.combo_prio.findText(prio)
-        if idx_p >= 0:
-            self.combo_prio.setCurrentIndex(idx_p)
-            
-        self.input_conteudo.setText(str(n.get('conteudo', '')))
+        self.input_obs.setText(str(n.get('observacao') or n.get('conteudo') or ''))
 
     def obter_dados(self):
+        d = self.input_data.date()
+        data_str = f"{d.day():02d}/{d.month():02d}/{d.year()}"
         return {
-            'titulo': self.input_titulo.text().strip(),
-            'categoria': self.combo_cat.currentText().strip(),
-            'prioridade': self.combo_prio.currentText().strip(),
-            'conteudo': self.input_conteudo.toPlainText().strip()
+            'data_programada': data_str,
+            'placa': self.input_placa.text().strip().upper(),
+            'status': self.combo_status.currentText().strip(),
+            'observacao': self.input_obs.toPlainText().strip()
         }

@@ -11,12 +11,11 @@ class ManutencaoController:
         
     @property
     def df(self):
-        """Retorna os dados em formato DataFrame para manter compatibilidade temporária com a View pesada"""
+        """Retorna os dados em formato DataFrame para manter compatibilidade com as Views"""
         import pandas as pd
         dados = self.obter_todos()
         df = pd.DataFrame(dados)
         
-        # Mapeia de volta para o padrão visual legado para não quebrar main.py
         if not df.empty:
             df = df.rename(columns={
                 'id': 'ID',
@@ -33,11 +32,22 @@ class ManutencaoController:
                 'nr_of': 'NR° OF',
                 'obs': 'OBS'
             })
+            # Cria colunas alias para facilitar acesso na View Qt e Dashboard
+            df['DIAS'] = df['TOTAL DE DIAS EM MANUTENÇÃO']
+            df['NRº OF'] = df['NR° OF']
         return df
         
     def obter_todos(self):
         """Retorna todos os registros"""
         return self.model.obter_todos()
+
+    def obter_por_id(self, id_registro):
+        """Retorna um registro específico pelo ID"""
+        return self.model.obter_por_id(id_registro)
+
+    def obter_registro_por_id(self, id_registro):
+        """Alias utilizado pela interface Qt para buscar registro por ID"""
+        return self.model.obter_por_id(id_registro)
         
     def _mapear_dados_interface_para_banco(self, dados_ui):
         """Mapeia o dicionário bruto da interface (com espaços/acentos) para colunas do DB"""
@@ -52,18 +62,19 @@ class ManutencaoController:
             'DATA ENTRADA': 'data_entrada',
             'DATA SAÍDA': 'data_saida',
             'TOTAL DE DIAS EM MANUTENÇÃO': 'total_dias_manutencao',
+            'DIAS': 'total_dias_manutencao',
             'NR° OF': 'nr_of',
+            'NRº OF': 'nr_of',
             'OBS': 'obs'
         }
         
         dados_db = {}
-        # Converte as chaves usando o mapeamento ou snake_case se não achar
         for k, v in dados_ui.items():
             k_upper = k.upper().strip()
             if k_upper in mapeamento:
                 dados_db[mapeamento[k_upper]] = v
             else:
-                k_db = k.lower().replace(' ', '_').replace('°', '').replace('ç', 'c').replace('í', 'i').replace('ã', 'a')
+                k_db = k.lower().replace(' ', '_').replace('°', '').replace('º', '').replace('ç', 'c').replace('í', 'i').replace('ã', 'a')
                 dados_db[k_db] = v
                 
         return dados_db
@@ -83,19 +94,17 @@ class ManutencaoController:
                 d_saida = datetime.now()
                 
             dias = (d_saida - d_entrada).days
-            return max(0, dias) # Nunca negativo
+            return max(0, dias)
         except Exception as e:
             logging.error(f"Erro ao calcular dias: {e}")
             return 0
             
     def _recalcular_campos_logica(self, dados):
         """Aplica as regras de negócio de autocalculo de status e dias antes de salvar"""
-        
         data_entrada = dados.get('data_entrada', '')
         data_saida = dados.get('data_saida', '')
         status = dados.get('status', '').strip().upper()
         
-        # Só recalcula o status automaticamente se o usuário deixou em branco
         if not status:
             if data_saida:
                 status = 'FINALIZADO'
@@ -105,7 +114,6 @@ class ManutencaoController:
                 status = 'AGUARDANDO'
         dados['status'] = status
         
-        # Calcula total de dias
         if data_entrada:
             dados['total_dias_manutencao'] = self._calcular_dias_manutencao(data_entrada, data_saida)
         else:
@@ -150,12 +158,24 @@ class ManutencaoController:
         except Exception as e:
             logging.error(f"Erro excluir registro: {e}")
             return False, f"Erro interno: {e}"
+
+    def excluir_multiplos(self, ids):
+        """Exclui uma lista de IDs do banco de dados"""
+        excluidos = 0
+        for id_reg in ids:
+            try:
+                if self.model.deletar(id_reg):
+                    excluidos += 1
+            except Exception as e:
+                logging.error(f"Erro ao excluir ID {id_reg}: {e}")
+        return excluidos > 0, f"{excluidos} registro(s) excluído(s)!"
+
     def obter_dataframe_exibicao(self):
-        """Alias compatível com a interface antiga"""
+        """Alias compatível com a interface"""
         return self.df
         
     def salvar_dados(self):
-        """Na nova arquitetura os dados já estão salvos, mas a UI chama esse método."""
+        """Na arquitetura SQLite WAL os dados já são persistidos automaticamente."""
         return True
         
     def obter_estatisticas(self):
@@ -163,20 +183,23 @@ class ManutencaoController:
         if df.empty:
             return {
                 'total': 0, 'em_manutencao': 0, 'finalizados': 0,
-            'aguardando': 0, 'em_transito': 0, 'em_servico': 0,
-            'tempo_medio': 0, 'placas_unicas': 0
+                'aguardando': 0, 'em_transito': 0, 'em_servico': 0,
+                'tempo_medio': 0, 'placas_unicas': 0
             }
         
+        em_manut = len(df[df['STATUS'] == 'EM MANUTENÇÃO'])
+        em_serv = len(df[df['STATUS'] == 'EM SERVIÇO'])
         return {
             'total': len(df),
-            'em_manutencao': len(df[df['STATUS'] == 'EM MANUTENÇÃO']),
+            'em_manutencao': em_manut,
             'finalizados': len(df[df['STATUS'] == 'FINALIZADO']),
             'aguardando': len(df[df['STATUS'] == 'AGUARDANDO']),
             'em_transito': len(df[df['STATUS'] == 'EM TRÂNSITO']),
-            'em_servico': len(df[df['STATUS'] == 'EM SERVIÇO']),
+            'em_servico': em_serv + em_manut,
             'tempo_medio': round(float(df['TOTAL DE DIAS EM MANUTENÇÃO'].mean()), 1) if 'TOTAL DE DIAS EM MANUTENÇÃO' in df.columns else 0,
             'placas_unicas': df['PLACA'].nunique() if 'PLACA' in df.columns else 0
         }
+
     def buscar_registros(self, filtros):
         df = self.df
         if df.empty:
@@ -184,22 +207,22 @@ class ManutencaoController:
             
         df_filtrado = df.copy()
         
-        # Filtro de Data Início
         if filtros.get('data_inicio'):
             try:
                 import pandas as pd
                 df_filtrado['DATA_DT'] = pd.to_datetime(df_filtrado['DATA ENTRADA'], format='%d/%m/%Y')
                 df_filtrado = df_filtrado[df_filtrado['DATA_DT'] >= pd.to_datetime(filtros['data_inicio'], format='%d/%m/%Y')]
-            except: pass
+            except Exception:
+                pass
             
-        # Filtro de Data Fim
         if filtros.get('data_fim'):
             try:
                 import pandas as pd
                 if 'DATA_DT' not in df_filtrado.columns:
                     df_filtrado['DATA_DT'] = pd.to_datetime(df_filtrado['DATA ENTRADA'], format='%d/%m/%Y')
                 df_filtrado = df_filtrado[df_filtrado['DATA_DT'] <= pd.to_datetime(filtros['data_fim'], format='%d/%m/%Y')]
-            except: pass
+            except Exception:
+                pass
             
         if 'DATA_DT' in df_filtrado.columns:
             df_filtrado = df_filtrado.drop('DATA_DT', axis=1)

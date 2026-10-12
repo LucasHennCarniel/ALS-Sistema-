@@ -11,19 +11,33 @@ class NotaController:
         
     def obter_por_id(self, id_nota):
         return self.model.obter_por_id(id_nota)
+
+    def obter_nota_por_id(self, id_nota):
+        return self.model.obter_por_id(id_nota)
+
+    def adicionar_nota(self, dados):
+        return self.salvar_nota(dados, id_nota=None)
+
+    def atualizar_nota(self, id_nota, dados):
+        return self.salvar_nota(dados, id_nota=id_nota)
         
     def salvar_nota(self, dados, id_nota=None):
         try:
+            data_prog = dados.get('data_programada') or datetime.now().strftime("%d/%m/%Y")
+            placa = dados.get('placa') or dados.get('titulo') or 'GERAL'
+            status = dados.get('status') or dados.get('prioridade') or 'PENDENTE'
+            obs = dados.get('observacao') or dados.get('conteudo') or ''
+
             dados_db = {
-                'data_programada': dados.get('data_programada', ''),
-                'placa': dados.get('placa', ''),
-                'status': dados.get('status', 'PENDENTE'),
-                'observacao': dados.get('observacao', ''),
+                'data_programada': data_prog,
+                'placa': placa,
+                'status': status,
+                'observacao': obs,
                 'data_criacao': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
             
             if not dados_db['data_programada'] or not dados_db['placa']:
-                return False, "Data programada e placa são obrigatórios"
+                return False, "Data programada e placa/título são obrigatórios"
                 
             if id_nota:
                 sucesso = self.model.atualizar(id_nota, dados_db)
