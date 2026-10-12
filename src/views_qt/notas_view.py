@@ -1,0 +1,198 @@
+"""
+Interface de Notas e Anotações com QFluentWidgets (Fluent Design)
+"""
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QHeaderView, 
+    QTableWidgetItem, QAbstractItemView
+)
+from qfluentwidgets import (
+    TitleLabel, CaptionLabel,
+    PrimaryPushButton, PushButton, SearchLineEdit,
+    TableWidget, FluentIcon as FIF, InfoBar, MessageBox
+)
+
+from src.views_qt.dialogs import FormNotaDialog
+
+
+class NotasView(QWidget):
+    """View de Notas e Anotações com design Fluent"""
+    
+    COLUNAS = ["ID", "DATA", "CATEGORIA", "PRIORIDADE", "TÍTULO", "CONTEÚDO"]
+    
+    def __init__(self, nota_ctrl, parent=None):
+        super().__init__(parent)
+        self.ctrl = nota_ctrl
+        self.notas_atuais = []
+        
+        self._init_ui()
+        self.carregar_dados()
+
+    def _init_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(16)
+        
+        # 1. Cabeçalho
+        header_layout = QHBoxLayout()
+        header_layout.addWidget(TitleLabel("Notas e Anotações Internas", self))
+        header_layout.addStretch()
+        layout.addLayout(header_layout)
+        
+        # 2. Barra de Ações
+        actions_layout = QHBoxLayout()
+        actions_layout.setSpacing(8)
+        
+        self.btn_nova = PrimaryPushButton("Nova Nota", self, FIF.ADD)
+        self.btn_nova.clicked.connect(self._nova_nota)
+        actions_layout.addWidget(self.btn_nova)
+        
+        self.btn_editar = PushButton("Editar", self, FIF.EDIT)
+        self.btn_editar.clicked.connect(self._editar_selecionada)
+        actions_layout.addWidget(self.btn_editar)
+        
+        self.btn_excluir = PushButton("Excluir", self, FIF.DELETE)
+        self.btn_excluir.clicked.connect(self._excluir_selecionada)
+        actions_layout.addWidget(self.btn_excluir)
+        
+        self.btn_atualizar = PushButton("Atualizar", self, FIF.SYNC)
+        self.btn_atualizar.clicked.connect(self.carregar_dados)
+        actions_layout.addWidget(self.btn_atualizar)
+        
+        actions_layout.addStretch()
+        
+        self.search_input = SearchLineEdit(self)
+        self.search_input.setPlaceholderText("Pesquisar título, conteúdo, categoria...")
+        self.search_input.textChanged.connect(self._filtrar)
+        self.search_input.setFixedWidth(280)
+        actions_layout.addWidget(self.search_input)
+        
+        layout.addLayout(actions_layout)
+        
+        # 3. Tabela
+        self.table = TableWidget(self)
+        self.table.setColumnCount(len(self.COLUNAS))
+        self.table.setHorizontalHeaderLabels(self.COLUNAS)
+        self.table.verticalHeader().hide()
+        self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table.itemDoubleClicked.connect(self._editar_selecionada)
+        
+        header = self.table.horizontalHeader()
+        header.setSectionResizeMode(QHeaderView.Interactive)
+        header.setStretchLastSection(True)
+        
+        layout.addWidget(self.table)
+
+    def carregar_dados(self):
+        try:
+            self.notas_atuais = self.ctrl.obter_todas() or []
+            self._render_tabela(self.notas_atuais)
+        except Exception as e:
+            InfoBar.error("Erro", f"Falha ao carregar notas: {e}", parent=self)
+
+    def _render_tabela(self, lista):
+        self.table.setRowCount(len(lista))
+        for row_idx, n in enumerate(lista):
+            nid = n.get('id', '')
+            data_criacao = n.get('data_criacao', '')
+            cat = n.get('categoria', 'GERAL')
+            prio = n.get('prioridade', 'MÉDIA')
+            titulo = n.get('titulo', '')
+            conteudo = n.get('conteudo', '')
+            
+            valores = [nid, data_criacao, cat, prio, titulo, conteudo]
+            for col_idx, val in enumerate(valores):
+                item = QTableWidgetItem(str(val))
+                if col_idx in [0, 1, 2, 3]:
+                    item.setTextAlignment(Qt.AlignCenter)
+                else:
+                    item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+                    
+                if col_idx == 3:
+                    prio_str = str(val).upper()
+                    if 'ALTA' in prio_str:
+                        item.setForeground(QColor('#C62828'))
+                    elif 'MÉDIA' in prio_str or 'MEDIA' in prio_str:
+                        item.setForeground(QColor('#E65100'))
+                    else:
+                        item.setForeground(QColor('#2E7D32'))
+                        
+                self.table.setItem(row_idx, col_idx, item)
+
+    def _filtrar(self):
+        termo = self.search_input.text().strip().lower()
+        if not termo:
+            self._render_tabela(self.notas_atuais)
+            return
+            
+        filtradas = [
+            n for n in self.notas_atuais
+            if termo in str(n.get('titulo', '')).lower()
+            or termo in str(n.get('conteudo', '')).lower()
+            or termo in str(n.get('categoria', '')).lower()
+        ]
+        self._render_tabela(filtradas)
+
+    def _obter_id_selecionado(self):
+        itens = self.table.selectedItems()
+        if not itens:
+            return None
+        row = itens[0].row()
+        try:
+            return int(self.table.item(row, 0).text())
+        except Exception:
+            return None
+
+    def _nova_nota(self):
+        dialog = FormNotaDialog(self)
+        if dialog.exec():
+            dados = dialog.obter_dados()
+            sucesso, msg = self.ctrl.adicionar_nota(dados)
+            if sucesso:
+                InfoBar.success("Sucesso", "Nota adicionada com sucesso!", parent=self)
+                self.carregar_dados()
+            else:
+                InfoBar.error("Erro", msg, parent=self)
+
+    def _editar_selecionada(self):
+        nid = self._obter_id_selecionado()
+        if not nid:
+            InfoBar.warning("Atenção", "Selecione uma nota para editar.", parent=self)
+            return
+            
+        nota = self.ctrl.obter_nota_por_id(nid)
+        if not nota:
+            InfoBar.error("Erro", "Nota não encontrada.", parent=self)
+            return
+            
+        dialog = FormNotaDialog(self, nota)
+        if dialog.exec():
+            dados = dialog.obter_dados()
+            sucesso, msg = self.ctrl.atualizar_nota(nid, dados)
+            if sucesso:
+                InfoBar.success("Sucesso", "Nota atualizada com sucesso!", parent=self)
+                self.carregar_dados()
+            else:
+                InfoBar.error("Erro", msg, parent=self)
+
+    def _excluir_selecionada(self):
+        nid = self._obter_id_selecionado()
+        if not nid:
+            InfoBar.warning("Atenção", "Selecione uma nota para excluir.", parent=self)
+            return
+            
+        msg_box = MessageBox(
+            "Confirmar Exclusão",
+            "Tem certeza que deseja excluir esta anotação?",
+            self
+        )
+        if msg_box.exec():
+            sucesso, msg = self.ctrl.excluir_nota(nid)
+            if sucesso:
+                InfoBar.success("Sucesso", "Nota excluída com sucesso!", parent=self)
+                self.carregar_dados()
+            else:
+                InfoBar.error("Erro", msg, parent=self)

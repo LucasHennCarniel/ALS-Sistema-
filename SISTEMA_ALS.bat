@@ -1,18 +1,18 @@
 @echo off
 chcp 65001 >nul
-title Sistema ALS - Painel de Controle
+title Sistema ALS - Painel de Controle (Windows 11 Fluent)
 color 0B
 
 :MENU
 cls
 echo.
 echo ==========================================================
-echo                   SISTEMA ALS - PAINEL
+echo       SISTEMA ALS - PAINEL FLUENT DESIGN (WINDOWS 11)
 echo ==========================================================
 echo.
 echo   Escolha uma opcao:
 echo.
-echo   [1] Iniciar Sistema Agora (Abre direto para uso)
+echo   [1] Iniciar Sistema Agora (Interface Moderna Fluent)
 echo   [2] Gerar/Atualizar Executavel (.exe)
 echo   [0] Sair
 echo.
@@ -32,18 +32,18 @@ goto MENU
 :INICIAR
 cls
 echo.
-echo Iniciando Sistema ALS...
+echo Iniciando Sistema ALS (Fluent Design)...
 echo Verificando dependencias...
-python -c "import pandas, tkcalendar, openpyxl, reportlab" 2>nul
+python -c "import PySide6, qfluentwidgets, pandas, openpyxl" 2>nul
 if errorlevel 1 (
     echo Instalando pacotes necessarios...
-    pip install pandas openpyxl reportlab tkcalendar pillow >nul
+    pip install PySide6-Fluent-Widgets PySide6 pandas openpyxl reportlab pillow >nul
 )
 echo.
 python src\main.py
 if errorlevel 1 (
     echo.
-    echo O programa encontrou um erro. Verifique a janela.
+    echo O programa encontrou um erro. Verifique acima.
     pause
 )
 goto MENU
@@ -58,10 +58,10 @@ echo ==========================================================
 echo.
 echo  Este processo vai:
 echo   - Limpar cache antigo
-echo   - Compilar o codigo atual
+echo   - Compilar a nova interface Windows 11 Fluent
 echo   - Criar a pasta SistemaALS_Atualizado
 echo.
-echo  Tempo estimado: 1 minuto.
+echo  Tempo estimado: 1 a 2 minutos.
 echo.
 pause
 
@@ -71,7 +71,7 @@ if exist dist rmdir /s /q dist 2>nul
 
 echo.
 echo Compilando... (aguarde)
-pyinstaller --noconfirm --onefile --windowed --name "SistemaManutencaoALS" --icon="img/logo ALS.png" --add-data "img;img" --hidden-import "openpyxl" --hidden-import "reportlab" --hidden-import "PIL" --hidden-import "pandas" --hidden-import "tkcalendar" --log-level WARN src\main.py
+pyinstaller --noconfirm --onefile --windowed --name "SistemaManutencaoALS" --icon="img/logo ALS.png" --add-data "img;img" --hidden-import "PySide6" --hidden-import "qfluentwidgets" --hidden-import "openpyxl" --hidden-import "reportlab" --hidden-import "PIL" --hidden-import "pandas" --log-level WARN src\main.py
 
 if errorlevel 1 (
     echo.
