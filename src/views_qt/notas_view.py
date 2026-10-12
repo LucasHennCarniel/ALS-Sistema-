@@ -20,6 +20,7 @@ class NotasView(QWidget):
     """View de Notas e Anotações com design Fluent"""
     
     COLUNAS = ["ID", "DATA", "CATEGORIA", "PRIORIDADE", "TÍTULO", "CONTEÚDO"]
+    LARGURAS = [60, 140, 130, 120, 220, 350]
     
     def __init__(self, nota_ctrl, parent=None):
         super().__init__(parent)
@@ -72,6 +73,9 @@ class NotasView(QWidget):
         
         # 3. Tabela
         self.table = TableWidget(self)
+        self.table.setBorderVisible(True)
+        self.table.setBorderRadius(8)
+        self.table.setWordWrap(False)
         self.table.setColumnCount(len(self.COLUNAS))
         self.table.setHorizontalHeaderLabels(self.COLUNAS)
         self.table.verticalHeader().hide()
@@ -82,6 +86,8 @@ class NotasView(QWidget):
         
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
+        for i, w in enumerate(self.LARGURAS):
+            self.table.setColumnWidth(i, w)
         header.setStretchLastSection(True)
         
         layout.addWidget(self.table)
@@ -114,11 +120,11 @@ class NotasView(QWidget):
                 if col_idx == 3:
                     prio_str = str(val).upper()
                     if 'ALTA' in prio_str:
-                        item.setForeground(QColor('#C62828'))
+                        item.setForeground(QColor('#EF5350'))
                     elif 'MÉDIA' in prio_str or 'MEDIA' in prio_str:
-                        item.setForeground(QColor('#E65100'))
+                        item.setForeground(QColor('#FFA726'))
                     else:
-                        item.setForeground(QColor('#2E7D32'))
+                        item.setForeground(QColor('#66BB6A'))
                         
                 self.table.setItem(row_idx, col_idx, item)
 

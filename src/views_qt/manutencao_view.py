@@ -4,7 +4,7 @@ Interface Principal de Registros de Manutenção com QFluentWidgets
 from datetime import datetime
 import pandas as pd
 from PySide6.QtCore import Qt, QDate
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QHeaderView, 
     QTableWidgetItem, QFileDialog, QAbstractItemView
@@ -19,21 +19,23 @@ from qfluentwidgets import (
 from src.views_qt.dialogs import FormRegistroDialog
 
 
-class StatCard(SimpleCardWidget):
-    """Card de estatística moderno"""
+class StatCard(CardWidget):
+    """Card de estatística moderno com alto contraste"""
     def __init__(self, titulo, valor_inicial="0", icone="📊", parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 12, 15, 12)
-        layout.setSpacing(4)
+        layout.setContentsMargins(18, 12, 18, 12)
+        layout.setSpacing(6)
         
-        self.label_titulo = CaptionLabel(f"{icone} {titulo}", self)
+        self.label_titulo = CaptionLabel(f"{icone}  {titulo}", self)
+        self.label_titulo.setFont(QFont('Segoe UI', 10))
+        
         self.label_valor = TitleLabel(str(valor_inicial), self)
-        self.label_valor.setStyleSheet("font-size: 22px; font-weight: bold;")
+        self.label_valor.setFont(QFont('Segoe UI', 20, QFont.Bold))
         
         layout.addWidget(self.label_titulo)
         layout.addWidget(self.label_valor)
-        self.setFixedHeight(80)
+        self.setFixedHeight(86)
 
     def set_valor(self, valor):
         self.label_valor.setText(str(valor))
@@ -46,6 +48,12 @@ class ManutencaoView(QWidget):
         "ID", "DATA", "PLACA", "KM", "VEÍCULO", 
         "DESTINO PROGRAMADO", "SERVIÇO A EXECUTAR", "STATUS", 
         "DATA ENTRADA", "DATA SAÍDA", "DIAS", "NRº OF", "OBS"
+    ]
+    
+    LARGURAS_COLUNAS = [
+        55, 95, 90, 85, 110,
+        165, 220, 130,
+        115, 105, 65, 90, 180
     ]
     
     def __init__(self, manutencao_ctrl, veiculo_ctrl, destino_ctrl, parent=None):
@@ -77,7 +85,7 @@ class ManutencaoView(QWidget):
         self.card_total = StatCard("Total de Registros", "0", "📊", self)
         self.card_servico = StatCard("Em Serviço", "0", "⚙️", self)
         self.card_finalizados = StatCard("Finalizados", "0", "✅", self)
-        self.card_tempo = StatCard("Tempo Médio", "0 dias", "⏱️", self)
+        self.card_tempo = StatCard("Tempo Médio", "0 d", "⏱️", self)
         self.card_placas = StatCard("Placas Atendidas", "0", "🚛", self)
         
         stats_layout.addWidget(self.card_total)
@@ -123,15 +131,15 @@ class ManutencaoView(QWidget):
         layout.addLayout(actions_layout)
         
         # 4. Barra de Filtros
-        filters_card = SimpleCardWidget(self)
+        filters_card = CardWidget(self)
         filters_layout = QHBoxLayout(filters_card)
-        filters_layout.setContentsMargins(12, 8, 12, 8)
-        filters_layout.setSpacing(10)
+        filters_layout.setContentsMargins(14, 10, 14, 10)
+        filters_layout.setSpacing(12)
         
         self.search_input = SearchLineEdit(self)
         self.search_input.setPlaceholderText("Pesquisar por Placa, Veículo, Serviço...")
         self.search_input.textChanged.connect(self._aplicar_filtro_busca)
-        self.search_input.setFixedWidth(280)
+        self.search_input.setFixedWidth(300)
         filters_layout.addWidget(self.search_input)
         
         filters_layout.addWidget(BodyLabel("Status:", self))
@@ -139,7 +147,7 @@ class ManutencaoView(QWidget):
         self.combo_filtro_status.addItem("Todos")
         self.combo_filtro_status.addItems(["EM MANUTENÇÃO", "FINALIZADO", "AGUARDANDO PEÇAS"])
         self.combo_filtro_status.currentTextChanged.connect(self._aplicar_filtro_busca)
-        self.combo_filtro_status.setFixedWidth(160)
+        self.combo_filtro_status.setFixedWidth(180)
         filters_layout.addWidget(self.combo_filtro_status)
         
         self.btn_limpar_filtro = PushButton("Limpar", self)
@@ -151,6 +159,9 @@ class ManutencaoView(QWidget):
         
         # 5. Tabela de Registros
         self.table = TableWidget(self)
+        self.table.setBorderVisible(True)
+        self.table.setBorderRadius(8)
+        self.table.setWordWrap(False)
         self.table.setColumnCount(len(self.COLUNAS))
         self.table.setHorizontalHeaderLabels(self.COLUNAS)
         self.table.verticalHeader().hide()
@@ -159,9 +170,11 @@ class ManutencaoView(QWidget):
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.itemDoubleClicked.connect(self._on_row_double_click)
         
-        # Header resize
+        # Configura larguras das colunas para não cortar cabeçalhos
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
+        for i, width in enumerate(self.LARGURAS_COLUNAS):
+            self.table.setColumnWidth(i, width)
         header.setStretchLastSection(True)
         
         layout.addWidget(self.table)
@@ -200,15 +213,15 @@ class ManutencaoView(QWidget):
                 item = QTableWidgetItem(str(val))
                 item.setTextAlignment(Qt.AlignCenter if col_name in ['ID', 'DATA', 'PLACA', 'STATUS', 'DIAS', 'DATA ENTRADA', 'DATA SAÍDA'] else Qt.AlignLeft | Qt.AlignVCenter)
                 
-                # Cores de Status
+                # Cores de Status com alto contraste
                 if col_name == 'STATUS':
                     status_str = str(val).upper()
                     if 'FINALIZADO' in status_str:
-                        item.setForeground(QColor('#2E7D32'))
-                    elif 'MANUTENÇÃO' in status_str:
-                        item.setForeground(QColor('#E65100'))
+                        item.setForeground(QColor('#66BB6A'))
+                    elif 'MANUTENÇÃO' in status_str or 'SERVIÇO' in status_str:
+                        item.setForeground(QColor('#FFA726'))
                     elif 'AGUARDANDO' in status_str:
-                        item.setForeground(QColor('#C2185B'))
+                        item.setForeground(QColor('#EF5350'))
                         
                 self.table.setItem(row_idx, col_idx, item)
 
@@ -352,7 +365,6 @@ class ManutencaoView(QWidget):
                 
             df.columns = df.columns.str.strip().str.upper()
             
-            # Validação básica de colunas
             if 'PLACA' not in df.columns:
                 InfoBar.error("Arquivo Inválido", "A planilha não possui a coluna 'PLACA'.", parent=self)
                 return

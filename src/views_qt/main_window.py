@@ -35,17 +35,17 @@ class SettingsView(QWidget):
         tema_layout.addWidget(SubtitleLabel("Aparência & Tema", card_tema))
         tema_layout.addWidget(BodyLabel("Escolha como você prefere visualizar a interface:", card_tema))
         
-        self.radio_claro = RadioButton("Modo Claro (Padrão)", card_tema)
-        self.radio_escuro = RadioButton("Modo Escuro (Dark Mode)", card_tema)
+        self.radio_escuro = RadioButton("Modo Escuro (Dark Mode - Padrão)", card_tema)
+        self.radio_claro = RadioButton("Modo Claro (Suave)", card_tema)
         self.radio_auto = RadioButton("Seguir o Sistema Windows", card_tema)
         
-        self.radio_claro.setChecked(True)
-        self.radio_claro.toggled.connect(lambda c: c and setTheme(Theme.LIGHT))
+        self.radio_escuro.setChecked(True)
         self.radio_escuro.toggled.connect(lambda c: c and setTheme(Theme.DARK))
+        self.radio_claro.toggled.connect(lambda c: c and setTheme(Theme.LIGHT))
         self.radio_auto.toggled.connect(lambda c: c and setTheme(Theme.AUTO))
         
-        tema_layout.addWidget(self.radio_claro)
         tema_layout.addWidget(self.radio_escuro)
+        tema_layout.addWidget(self.radio_claro)
         tema_layout.addWidget(self.radio_auto)
         layout.addWidget(card_tema)
         
@@ -78,17 +78,17 @@ class MainWindow(FluentWindow):
 
     def _init_window(self):
         self.setWindowTitle("Sistema de Gestão de Manutenção - ALS")
-        self.resize(1260, 780)
-        self.setMinimumSize(980, 640)
+        self.resize(1320, 800)
+        self.setMinimumSize(1024, 660)
         
         # Ícone da aplicação
         icon_path = os.path.abspath("img/logo ALS.png")
         if os.path.exists(icon_path):
             self.setWindowIcon(QIcon(icon_path))
             
-        # Cor de destaque da marca ALS (Verde Moderno)
+        # Cor de destaque da marca ALS e Modo Escuro por padrão
         setThemeColor('#4CAF50')
-        setTheme(Theme.LIGHT)
+        setTheme(Theme.DARK)
 
     def _init_navigation(self):
         # 1. Manutenções
@@ -123,7 +123,17 @@ class MainWindow(FluentWindow):
             NavigationItemPosition.TOP
         )
         
-        # 4. Configurações (inferior)
+        # 4. Botão rápido de alternar Tema Claro/Escuro na barra lateral inferior
+        self.navigationInterface.addItem(
+            routeKey="toggle_theme",
+            icon=FIF.CONSTRACT,
+            text="Alternar Tema",
+            onClick=self._alternar_tema,
+            selectable=False,
+            position=NavigationItemPosition.BOTTOM
+        )
+        
+        # 5. Configurações (inferior)
         self.settings_view = SettingsView(self)
         self.settings_view.setObjectName("settings_view")
         self.addSubInterface(
@@ -132,3 +142,11 @@ class MainWindow(FluentWindow):
             "Configurações",
             NavigationItemPosition.BOTTOM
         )
+
+    def _alternar_tema(self):
+        if isDarkTheme():
+            setTheme(Theme.LIGHT)
+            self.settings_view.radio_claro.setChecked(True)
+        else:
+            setTheme(Theme.DARK)
+            self.settings_view.radio_escuro.setChecked(True)

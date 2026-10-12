@@ -3,7 +3,7 @@ Interface de Gestão de Veículos com QFluentWidgets (Fluent Design)
 """
 import pandas as pd
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QHeaderView, 
     QTableWidgetItem, QFileDialog, QAbstractItemView
@@ -11,28 +11,31 @@ from PySide6.QtWidgets import (
 from qfluentwidgets import (
     TitleLabel, CaptionLabel, BodyLabel,
     PrimaryPushButton, PushButton, SearchLineEdit,
-    TableWidget, SimpleCardWidget,
+    TableWidget, CardWidget,
     FluentIcon as FIF, InfoBar, MessageBox
 )
 
 from src.views_qt.dialogs import FormVeiculoDialog
 
 
-class VeiculoStatCard(SimpleCardWidget):
-    """Card de estatística para veículos"""
+class VeiculoStatCard(CardWidget):
+    """Card de estatística para veículos com alto contraste"""
     def __init__(self, titulo, valor_inicial="0", icone="🚛", parent=None):
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 12, 15, 12)
-        layout.setSpacing(4)
+        layout.setContentsMargins(18, 12, 18, 12)
+        layout.setSpacing(6)
         
-        self.label_titulo = CaptionLabel(f"{icone} {titulo}", self)
+        self.label_titulo = CaptionLabel(f"{icone}  {titulo}", self)
+        self.label_titulo.setFont(QFont('Segoe UI', 10))
+        
         self.label_valor = TitleLabel(str(valor_inicial), self)
-        self.label_valor.setStyleSheet("font-size: 20px; font-weight: bold;")
+        self.label_valor.setFont(QFont('Segoe UI', 20, QFont.Bold))
         
         layout.addWidget(self.label_titulo)
         layout.addWidget(self.label_valor)
-        self.setFixedHeight(75)
+        self.setFixedHeight(86)
+        self.setMinimumWidth(200)
 
     def set_valor(self, valor):
         self.label_valor.setText(str(valor))
@@ -42,6 +45,7 @@ class VeiculosView(QWidget):
     """View de Veículos com design Fluent"""
     
     COLUNAS = ["TIPO / MARCA", "PLACA", "DESCRIÇÃO", "ÚLTIMA KM", "DATA CADASTRO", "STATUS"]
+    LARGURAS = [150, 110, 260, 120, 140, 100]
     
     def __init__(self, veiculo_ctrl, parent=None):
         super().__init__(parent)
@@ -116,6 +120,9 @@ class VeiculosView(QWidget):
         
         # 4. Tabela
         self.table = TableWidget(self)
+        self.table.setBorderVisible(True)
+        self.table.setBorderRadius(8)
+        self.table.setWordWrap(False)
         self.table.setColumnCount(len(self.COLUNAS))
         self.table.setHorizontalHeaderLabels(self.COLUNAS)
         self.table.verticalHeader().hide()
@@ -126,6 +133,8 @@ class VeiculosView(QWidget):
         
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
+        for i, w in enumerate(self.LARGURAS):
+            self.table.setColumnWidth(i, w)
         header.setStretchLastSection(True)
         
         layout.addWidget(self.table)
@@ -161,7 +170,7 @@ class VeiculosView(QWidget):
                     item.setTextAlignment(Qt.AlignLeft | Qt.AlignVCenter)
                     
                 if col_idx == 5:
-                    item.setForeground(QColor('#2E7D32') if ativo else QColor('#C62828'))
+                    item.setForeground(QColor('#66BB6A') if ativo else QColor('#EF5350'))
                     
                 self.table.setItem(row_idx, col_idx, item)
 
