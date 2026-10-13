@@ -75,6 +75,8 @@ pyinstaller --noconfirm --onefile --windowed ^
     --icon="img/logo ALS.png" ^
     --add-data "img;img" ^
     --add-data "src;src" ^
+    --collect-all "streamlit" ^
+    --collect-all "plotly" ^
     --hidden-import "PySide6" ^
     --hidden-import "qfluentwidgets" ^
     --hidden-import "openpyxl" ^
@@ -83,8 +85,6 @@ pyinstaller --noconfirm --onefile --windowed ^
     --hidden-import "pandas" ^
     --hidden-import "sqlalchemy" ^
     --hidden-import "sqlalchemy.dialects.sqlite" ^
-    --hidden-import "streamlit" ^
-    --hidden-import "plotly" ^
     --hidden-import "docx" ^
     --log-level WARN src\main.py
 

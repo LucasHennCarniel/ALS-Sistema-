@@ -105,11 +105,8 @@ class DashboardView(QWidget):
             return
 
         if self.processo_streamlit is None or self.processo_streamlit.poll() is not None:
-            script_path = os.path.abspath(
-                os.path.join(os.path.dirname(__file__), "..", "dashboard_streamlit.py")
-            )
             cmd = [
-                sys.executable, "-m", "streamlit", "run", script_path,
+                sys.executable, "--run-streamlit",
                 "--server.port", str(self.PORTA),
                 "--server.headless", "true",
                 "--browser.gatherUsageStats", "false",
