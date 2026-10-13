@@ -66,7 +66,7 @@ def test_excluir_veiculo(controller):
     assert sucesso is True
     
     veiculo = controller.obter_veiculo_por_placa("CCC3333")
-    assert bool(veiculo['ativo']) is False
+    assert veiculo is None
 
 def test_extrair_placa(controller):
     placa = controller.extrair_placa_da_selecao("ABC1234 - CAVALO - Desc")

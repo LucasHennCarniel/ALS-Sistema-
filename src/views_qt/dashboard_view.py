@@ -155,6 +155,14 @@ class DashboardView(QWidget):
         self.timer_check.stop()
         if self.processo_streamlit and self.processo_streamlit.poll() is None:
             try:
-                self.processo_streamlit.terminate()
+                if os.name == 'nt':
+                    subprocess.run(
+                        f"taskkill /F /T /PID {self.processo_streamlit.pid}",
+                        shell=True,
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                else:
+                    self.processo_streamlit.terminate()
             except Exception:
                 pass

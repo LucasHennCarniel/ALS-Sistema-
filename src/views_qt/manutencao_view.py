@@ -446,84 +446,18 @@ class ManutencaoView(QWidget):
                     )
                     return
 
-            # Processamento de Planilha de Manutenção
-            conn = self.ctrl.model.conn
-            cursor = conn.cursor()
+            # Processamento de Planilha de Manutenção via Controller (SQLAlchemy ORM)
+            novos, atualizados = self.ctrl.importar_dataframe_manutencoes(df, modo)
 
-            if modo == "substituir":
-                cursor.execute("DELETE FROM manutencoes")
-                conn.commit()
-
-            novos = 0
-            atualizados = 0
-
+            # Auto-cadastro de veículos e destinos encontrados
             for _, row in df.iterrows():
                 placa = str(row.get('PLACA', '')).strip().upper()
-                if not placa or placa == 'NAN' or placa == 'NONE':
-                    continue
-
-                data_str = formatar_valor_data(row.get('DATA'))
-                data_entrada = formatar_valor_data(row.get('DATA ENTRADA'))
-                data_saida = formatar_valor_data(row.get('DATA SAÍDA'))
-
-                if not data_str and data_entrada:
-                    data_str = data_entrada
-                elif not data_entrada and data_str:
-                    data_entrada = data_str
-
-                if not data_str and not data_entrada:
-                    continue
-
-                km_raw = row.get('KM', 0)
-                try:
-                    km = float(km_raw) if pd.notna(km_raw) and str(km_raw).lower() != 'xxx' else 0.0
-                except Exception:
-                    km = 0.0
-
-                veiculo_txt = str(row.get('VEÍCULO', '')).strip().upper() if pd.notna(row.get('VEÍCULO')) else ''
-                destino_txt = str(row.get('DESTINO PROGRAMADO', '')).strip().upper() if pd.notna(row.get('DESTINO PROGRAMADO')) else ''
-                servico_txt = str(row.get('SERVIÇO A EXECUTAR', '')).strip() if pd.notna(row.get('SERVIÇO A EXECUTAR')) else ''
-                status_txt = str(row.get('STATUS', '')).strip().upper() if pd.notna(row.get('STATUS')) else ''
-                of_val = row.get('NR° OF') if 'NR° OF' in df.columns else row.get('NRº OF', '')
-                of_txt = str(of_val).strip() if pd.notna(of_val) else ''
-                obs_txt = str(row.get('OBS', '')).strip() if pd.notna(row.get('OBS')) else ''
-
-                dados = {
-                    'data': data_str,
-                    'placa': placa,
-                    'km': km,
-                    'veiculo': veiculo_txt,
-                    'destino_programado': destino_txt,
-                    'servico_executar': servico_txt,
-                    'status': status_txt,
-                    'data_entrada': data_entrada,
-                    'data_saida': data_saida,
-                    'nr_of': of_txt,
-                    'obs': obs_txt
-                }
-
-                # Verifica se já existe registro idêntico (placa + data + data_entrada)
-                cursor.execute(
-                    "SELECT id FROM manutencoes WHERE placa = ? AND data = ? AND data_entrada = ?",
-                    (placa, data_str, data_entrada)
-                )
-                existente = cursor.fetchone()
-
-                if existente:
-                    if modo == "novo":
-                        continue
-                    elif modo == "atualizar":
-                        self.ctrl.atualizar_registro(existente[0], dados)
-                        atualizados += 1
-                else:
-                    self.ctrl.adicionar_registro(dados)
-                    novos += 1
-
-                # Garante cadastro do veículo e destino
-                if placa and not self.veiculo_ctrl.obter_veiculo_por_placa(placa):
-                    self.veiculo_ctrl.adicionar_veiculo(veiculo_txt or 'FROTA', placa, 'Importado da Planilha', km)
-                if destino_txt:
-                    self.destino_ctrl.adicionar_destino(destino_txt)
+                if placa and placa not in ('NAN', 'NONE') and not self.veiculo_ctrl.obter_veiculo_por_placa(placa):
+                    veic_txt = str(row.get('VEÍCULO', '')).strip().upper() if pd.notna(row.get('VEÍCULO')) else 'FROTA'
+                    self.veiculo_ctrl.adicionar_veiculo(veic_txt, placa, 'Importado da Planilha', 0)
+                dest = str(row.get('DESTINO PROGRAMADO', '')).strip().upper() if pd.notna(row.get('DESTINO PROGRAMADO')) else ''
+                if dest and dest not in ('NAN', 'NONE'):
+                    self.destino_ctrl.adicionar_destino(dest)
 
             self.carregar_dados()
             win = self.window()

@@ -18,13 +18,15 @@ class ExportService:
         with pd.ExcelWriter(arquivo, engine='openpyxl') as writer:
             df.to_excel(writer, index=False, sheet_name='Dados')
             worksheet = writer.sheets['Dados']
+            from openpyxl.utils import get_column_letter
             for i, col in enumerate(df.columns):
                 try:
                     val_len = df[col].astype(str).apply(len).max()
                 except Exception:
                     val_len = 10
                 max_len = max(val_len, len(str(col))) + 2
-                worksheet.column_dimensions[chr(65 + (i % 26))].width = min(max_len, 50)
+                col_letter = get_column_letter(i + 1)
+                worksheet.column_dimensions[col_letter].width = min(max_len, 50)
         return True
 
     @staticmethod

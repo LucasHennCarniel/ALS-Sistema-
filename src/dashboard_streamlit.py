@@ -79,8 +79,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
+@st.cache_data(ttl=20)
 def carregar_dados():
-    """Carrega dados atualizados diretamente dos Controllers MVC"""
+    """Carrega dados atualizados diretamente dos Controllers MVC (com cache de 20s)"""
     manut_ctrl = ManutencaoController()
     veic_ctrl = VeiculoController()
     dest_ctrl = DestinoController()

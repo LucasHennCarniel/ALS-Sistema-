@@ -33,6 +33,7 @@ output/
 # Executáveis gerados
 SistemaALS/
 SistemaALS_ParaSeuPai/
+SistemaALS_Atualizado/
 *.exe
 
 # Planilhas temporárias
