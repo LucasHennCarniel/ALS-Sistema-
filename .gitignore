@@ -30,9 +30,11 @@ desktop.ini
 backup/
 output/
 
-# Executáveis gerados
+# Executáveis e instaladores gerados
 SistemaALS/
 SistemaALS_ParaSeuPai/
+SistemaALS_Atualizado/
+dist_installer/
 *.exe
 
 # Planilhas temporárias
