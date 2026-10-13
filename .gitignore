@@ -33,9 +33,12 @@ output/
 # Executáveis gerados
 SistemaALS/
 SistemaALS_ParaSeuPai/
-SistemaALS_Atualizado/
 *.exe
 
 # Planilhas temporárias
 ~$*.xlsx
 *.tmp
+
+data/sistema_als.db
+data/sistema_als.db-shm
+data/sistema_als.db-wal
