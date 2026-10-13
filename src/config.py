@@ -17,7 +17,7 @@ BACKUP_DIR = os.path.join(BASE_PATH, 'backup')
 DB_PATH = os.path.join(DATA_DIR, 'sistema_als.db')
 
 # Versão do Aplicativo e Repositório Oficial
-APP_VERSION = "1.0.2"
+APP_VERSION = "1.0.3"
 GITHUB_REPO = "LucasHennCarniel/ALS-Sistema-"
 UPDATE_FLAG_MANDATORY = "[OBRIGATORIA]"
 

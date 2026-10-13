@@ -112,6 +112,8 @@ class DashboardView(QWidget):
                 cmd_exec = [sys.executable, main_py, "--run-streamlit"]
 
             cmd = cmd_exec + [
+                "--global.developmentMode", "false",
+                "--server.fileWatcherType", "none",
                 "--server.port", str(self.PORTA),
                 "--server.headless", "true",
                 "--browser.gatherUsageStats", "false",
@@ -122,12 +124,15 @@ class DashboardView(QWidget):
                 "--theme.textColor", "#1E293B"
             ]
             creationflags = subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            env = os.environ.copy()
+            env["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
             try:
                 self.processo_streamlit = subprocess.Popen(
                     cmd,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
-                    creationflags=creationflags
+                    creationflags=creationflags,
+                    env=env
                 )
                 self.status_label.setText("Status: Iniciando servidor analítico...")
                 self.timer_check.start()

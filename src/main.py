@@ -22,6 +22,7 @@ if __name__ == "__main__":
 
     # Intercepta execução do servidor analítico Streamlit quando invocado como subprocesso
     if len(sys.argv) > 1 and sys.argv[1] == "--run-streamlit":
+        os.environ["STREAMLIT_GLOBAL_DEVELOPMENT_MODE"] = "false"
         from streamlit.web import cli as stcli
         base_dir = getattr(sys, '_MEIPASS', BASE_DIR)
         script_path = os.path.join(base_dir, "src", "dashboard_streamlit.py")
