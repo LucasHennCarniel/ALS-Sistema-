@@ -34,8 +34,9 @@ class VeiculoController:
         
     def adicionar_veiculo(self, tipo, placa, descricao='', km_inicial=0):
         placa = placa.upper().strip()
-        if not placa or not tipo:
-            return False, "Placa e Tipo são obrigatórios!"
+        tipo = tipo.upper().strip() if tipo else 'OUTRO'
+        if not placa:
+            return False, "A Placa é obrigatória!"
             
         try:
             if self.model.obter_por_placa(placa):
@@ -48,33 +49,33 @@ class VeiculoController:
             logging.error(f"Erro ao cadastrar veiculo: {e}")
             return False, f"Erro ao cadastrar veículo: {e}"
             
-    def atualizar_veiculo(self, placa_antiga, tipo, nova_placa, descricao, ativo):
+    def atualizar_veiculo(self, placa_antiga, tipo, nova_placa, descricao, ativo, ultima_km=None):
         nova_placa = nova_placa.upper().strip()
         placa_antiga = placa_antiga.upper().strip()
+        tipo = tipo.upper().strip() if tipo else 'OUTRO'
         
-        if not nova_placa or not tipo:
-            return False, "Placa e Tipo são obrigatórios!"
+        if not nova_placa:
+            return False, "A Placa é obrigatória!"
             
         try:
-            # Se a placa mudou, verifica duplicidade
             if nova_placa != placa_antiga and self.model.obter_por_placa(nova_placa):
                 return False, "A nova placa já está cadastrada em outro veículo!"
                 
-            self.model.atualizar(placa_antiga, tipo, nova_placa, descricao, ativo)
+            self.model.atualizar(placa_antiga, tipo, nova_placa, descricao, ativo, ultima_km=ultima_km)
             return True, "Veículo atualizado com sucesso!"
         except Exception as e:
             logging.error(f"Erro ao atualizar veiculo: {e}")
-            return False, f"Erro ao atualizar veículo."
+            return False, f"Erro ao atualizar veículo: {e}"
             
     def excluir_veiculo(self, placa):
         try:
-            sucesso = self.model.desativar(placa)
+            sucesso = self.model.deletar(placa)
             if sucesso:
-                return True, "Veículo desativado com sucesso!"
+                return True, "Veículo excluído com sucesso!"
             return False, "Veículo não encontrado."
         except Exception as e:
-            logging.error(f"Erro ao desativar veiculo: {e}")
-            return False, "Erro ao desativar veículo."
+            logging.error(f"Erro ao excluir veiculo: {e}")
+            return False, f"Erro ao excluir veículo: {e}"
             
     def atualizar_km(self, placa, nova_km):
         try:

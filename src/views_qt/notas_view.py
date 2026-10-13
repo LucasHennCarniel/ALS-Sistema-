@@ -1,6 +1,6 @@
 """
 Interface de Notas e Anotações com QFluentWidgets (Fluent Design)
-Visual Corporativo com Ícones Vetoriais Fluent
+Visual Corporativo com Ícones Vetoriais Fluent e Endpoints Completos
 """
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
@@ -51,19 +51,19 @@ class NotasView(QWidget):
         actions_layout.setSpacing(8)
         
         self.btn_nova = PrimaryPushButton("Nova Nota", self, FIF.ADD)
-        self.btn_nova.clicked.connect(self._nova_nota)
+        self.btn_nova.clicked.connect(lambda *_: self._nova_nota())
         actions_layout.addWidget(self.btn_nova)
         
         self.btn_editar = PushButton("Editar", self, FIF.EDIT)
-        self.btn_editar.clicked.connect(self._editar_selecionada)
+        self.btn_editar.clicked.connect(lambda *_: self._editar_selecionada())
         actions_layout.addWidget(self.btn_editar)
         
         self.btn_excluir = PushButton("Excluir", self, FIF.DELETE)
-        self.btn_excluir.clicked.connect(self._excluir_selecionada)
+        self.btn_excluir.clicked.connect(lambda *_: self._excluir_selecionada())
         actions_layout.addWidget(self.btn_excluir)
         
         self.btn_atualizar = PushButton("Atualizar", self, FIF.SYNC)
-        self.btn_atualizar.clicked.connect(self.carregar_dados)
+        self.btn_atualizar.clicked.connect(lambda *_: self.carregar_dados())
         actions_layout.addWidget(self.btn_atualizar)
         
         actions_layout.addStretch()
@@ -86,9 +86,9 @@ class NotasView(QWidget):
         self.table.setHorizontalHeaderLabels(self.COLUNAS)
         self.table.verticalHeader().hide()
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
-        self.table.setSelectionMode(QAbstractItemView.SingleSelection)
+        self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.table.itemDoubleClicked.connect(self._editar_selecionada)
+        self.table.itemDoubleClicked.connect(self._on_row_double_click)
         
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.Interactive)
@@ -106,7 +106,7 @@ class NotasView(QWidget):
             self.notas_atuais = self.ctrl.obter_todas() or []
             self._render_tabela(self.notas_atuais)
         except Exception as e:
-            InfoBar.error("Erro", f"Falha ao carregar notas: {e}", parent=self)
+            InfoBar.error("Erro", f"Falha ao carregar notas: {e}", parent=self.window())
 
     def _render_tabela(self, lista):
         self.table.setRowCount(len(lista))
@@ -136,7 +136,7 @@ class NotasView(QWidget):
                         
                 self.table.setItem(row_idx, col_idx, item)
 
-    def _filtrar(self):
+    def _filtrar(self, *_):
         termo = self.search_input.text().strip().lower()
         if not termo:
             self._render_tabela(self.notas_atuais)
@@ -151,62 +151,83 @@ class NotasView(QWidget):
         self._render_tabela(filtradas)
 
     def _obter_id_selecionado(self):
-        itens = self.table.selectedItems()
-        if not itens:
-            return None
-        row = itens[0].row()
-        try:
-            return int(self.table.item(row, 0).text())
-        except Exception:
-            return None
+        row = self.table.currentRow()
+        if row < 0:
+            itens = self.table.selectedItems()
+            if itens:
+                row = itens[0].row()
+        if row >= 0:
+            it = self.table.item(row, 0)
+            if it:
+                try:
+                    return int(it.text())
+                except Exception:
+                    pass
+        return None
+
+    def _on_row_double_click(self, item):
+        if item:
+            self.table.selectRow(item.row())
+        self._editar_selecionada()
 
     def _nova_nota(self):
-        dialog = FormNotaDialog(self)
+        dialog = FormNotaDialog(self.window())
         if dialog.exec():
             dados = dialog.obter_dados()
             sucesso, msg = self.ctrl.adicionar_nota(dados)
             if sucesso:
-                InfoBar.success("Sucesso", "Nota adicionada com sucesso!", parent=self)
+                InfoBar.success("Sucesso", "Nota adicionada com sucesso!", parent=self.window())
                 self.carregar_dados()
             else:
-                InfoBar.error("Erro", msg, parent=self)
+                InfoBar.error("Erro", msg, parent=self.window())
 
     def _editar_selecionada(self):
         nid = self._obter_id_selecionado()
         if not nid:
-            InfoBar.warning("Atenção", "Selecione uma nota para editar.", parent=self)
+            InfoBar.warning("Atenção", "Selecione uma nota na tabela para editar.", parent=self.window())
             return
             
         nota = self.ctrl.obter_nota_por_id(nid)
         if not nota:
-            InfoBar.error("Erro", "Nota não encontrada.", parent=self)
+            InfoBar.error("Erro", "Nota não encontrada.", parent=self.window())
             return
             
-        dialog = FormNotaDialog(self, nota)
+        dialog = FormNotaDialog(self.window(), nota)
         if dialog.exec():
             dados = dialog.obter_dados()
             sucesso, msg = self.ctrl.atualizar_nota(nid, dados)
             if sucesso:
-                InfoBar.success("Sucesso", "Nota atualizada com sucesso!", parent=self)
+                InfoBar.success("Sucesso", "Nota atualizada com sucesso!", parent=self.window())
                 self.carregar_dados()
             else:
-                InfoBar.error("Erro", msg, parent=self)
+                InfoBar.error("Erro", msg, parent=self.window())
 
     def _excluir_selecionada(self):
-        nid = self._obter_id_selecionado()
-        if not nid:
-            InfoBar.warning("Atenção", "Selecione uma nota para excluir.", parent=self)
+        linhas = set(item.row() for item in self.table.selectedItems())
+        if not linhas and self.table.currentRow() >= 0:
+            linhas.add(self.table.currentRow())
+
+        if not linhas:
+            InfoBar.warning("Atenção", "Selecione uma nota na tabela para excluir.", parent=self.window())
             return
             
         msg_box = MessageBox(
             "Confirmar Exclusão",
-            "Tem certeza que deseja excluir esta anotação?",
-            self
+            f"Tem certeza que deseja excluir {len(linhas)} anotação(ões) selecionada(s)?",
+            self.window()
         )
+        msg_box.yesButton.setText("Excluir")
+        msg_box.cancelButton.setText("Cancelar")
         if msg_box.exec():
-            sucesso, msg = self.ctrl.excluir_nota(nid)
-            if sucesso:
-                InfoBar.success("Sucesso", "Nota excluída com sucesso!", parent=self)
-                self.carregar_dados()
-            else:
-                InfoBar.error("Erro", msg, parent=self)
+            excluidas = 0
+            for r in linhas:
+                it = self.table.item(r, 0)
+                if it:
+                    try:
+                        ok, _ = self.ctrl.excluir_nota(int(it.text()))
+                        if ok:
+                            excluidas += 1
+                    except Exception:
+                        pass
+            InfoBar.success("Sucesso", f"{excluidas} nota(s) excluída(s) com sucesso!", parent=self.window())
+            self.carregar_dados()

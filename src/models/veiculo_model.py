@@ -68,7 +68,7 @@ class VeiculoModel:
     def obter_por_placa(self, placa):
         """Retorna dados de um veículo pela placa"""
         cursor = self.conn.cursor()
-        cursor.execute("SELECT * FROM veiculos WHERE placa = ?", (placa.upper(),))
+        cursor.execute("SELECT * FROM veiculos WHERE UPPER(TRIM(placa)) = ?", (placa.strip().upper(),))
         row = cursor.fetchone()
         return dict(row) if row else None
         
@@ -78,33 +78,47 @@ class VeiculoModel:
         cursor.execute("""
             INSERT INTO veiculos (placa, tipo_veiculo, descricao, ultima_km, data_cadastro, ativo)
             VALUES (?, ?, ?, ?, ?, 1)
-        """, (placa.upper(), tipo, descricao if descricao else None, km_inicial, datetime.now().strftime('%d/%m/%Y')))
+        """, (placa.strip().upper(), tipo.strip().upper(), descricao.strip() if descricao else None, int(float(km_inicial or 0)), datetime.now().strftime('%d/%m/%Y')))
         self.conn.commit()
         return True
         
-    def atualizar(self, placa_antiga, tipo, nova_placa, descricao, ativo):
-        """Atualiza dados de um veículo"""
+    def atualizar(self, placa_antiga, tipo, nova_placa, descricao, ativo, ultima_km=None):
+        """Atualiza dados de um veículo (incluindo KM se fornecida)"""
         cursor = self.conn.cursor()
-        cursor.execute("""
-            UPDATE veiculos 
-            SET tipo_veiculo = ?, placa = ?, descricao = ?, ativo = ?
-            WHERE placa = ?
-        """, (tipo, nova_placa.upper(), descricao if descricao else None, 1 if ativo else 0, placa_antiga.upper()))
+        if ultima_km is not None:
+            cursor.execute("""
+                UPDATE veiculos 
+                SET tipo_veiculo = ?, placa = ?, descricao = ?, ativo = ?, ultima_km = ?
+                WHERE UPPER(TRIM(placa)) = ?
+            """, (tipo.strip().upper(), nova_placa.strip().upper(), descricao if descricao else None, 1 if ativo else 0, int(float(ultima_km)), placa_antiga.strip().upper()))
+        else:
+            cursor.execute("""
+                UPDATE veiculos 
+                SET tipo_veiculo = ?, placa = ?, descricao = ?, ativo = ?
+                WHERE UPPER(TRIM(placa)) = ?
+            """, (tipo.strip().upper(), nova_placa.strip().upper(), descricao if descricao else None, 1 if ativo else 0, placa_antiga.strip().upper()))
         self.conn.commit()
         return cursor.rowcount > 0
         
     def atualizar_km(self, placa, nova_km):
         """Atualiza a KM de um veículo"""
         cursor = self.conn.cursor()
-        cursor.execute("UPDATE veiculos SET ultima_km = ? WHERE placa = ?", 
-                     (nova_km, placa.upper()))
+        cursor.execute("UPDATE veiculos SET ultima_km = ? WHERE UPPER(TRIM(placa)) = ?", 
+                     (int(float(nova_km)), placa.strip().upper()))
         self.conn.commit()
         return cursor.rowcount > 0
         
     def desativar(self, placa):
         """Desativa um veículo"""
         cursor = self.conn.cursor()
-        cursor.execute("UPDATE veiculos SET ativo = 0 WHERE placa = ?", (placa.upper(),))
+        cursor.execute("UPDATE veiculos SET ativo = 0 WHERE UPPER(TRIM(placa)) = ?", (placa.strip().upper(),))
+        self.conn.commit()
+        return cursor.rowcount > 0
+
+    def deletar(self, placa):
+        """Exclui permanentemente um veículo pela placa"""
+        cursor = self.conn.cursor()
+        cursor.execute("DELETE FROM veiculos WHERE UPPER(TRIM(placa)) = ?", (placa.strip().upper(),))
         self.conn.commit()
         return cursor.rowcount > 0
 
