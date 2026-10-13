@@ -3,7 +3,7 @@
 ; ==========================================================
 
 #define MyAppName "Sistema ALS"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "ALS Transportes"
 #define MyAppExeName "SistemaManutencaoALS.exe"
 
@@ -25,6 +25,8 @@ SolidCompression=yes
 WizardStyle=modern
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
+CloseApplications=force
+RestartApplications=no
 
 [Languages]
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"

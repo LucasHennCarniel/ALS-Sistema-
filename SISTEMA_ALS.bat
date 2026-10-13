@@ -55,61 +55,18 @@ echo              GERANDO EXECUTAVEL DO SISTEMA
 echo ==========================================================
 echo.
 echo  Este processo vai:
-echo   - Verificar e garantir as dependencias
+echo   - Verificar dependencias
 echo   - Limpar cache antigo
-echo   - Compilar a aplicacao com SQLAlchemy e Streamlit
+echo   - Compilar a aplicacao com SQLAlchemy, Streamlit e Plotly
 echo   - Atualizar a pasta SistemaALS_Atualizado
 echo.
 pause
 
-call :VERIFICAR_TODAS_DEPENDENCIAS
-
-echo Limpando cache antigo...
-if exist build rmdir /s /q build 2>nul
-if exist dist rmdir /s /q dist 2>nul
+call :EXECUTAR_BUILD_EXE
+if errorlevel 1 goto MENU
 
 echo.
-echo Compilando... (aguarde de 1 a 2 minutos)
-pyinstaller --noconfirm --onefile --windowed ^
-    --name "SistemaManutencaoALS" ^
-    --icon="img/logo ALS.png" ^
-    --add-data "img;img" ^
-    --add-data "src;src" ^
-    --collect-all "streamlit" ^
-    --collect-all "plotly" ^
-    --hidden-import "PySide6" ^
-    --hidden-import "qfluentwidgets" ^
-    --hidden-import "openpyxl" ^
-    --hidden-import "reportlab" ^
-    --hidden-import "PIL" ^
-    --hidden-import "pandas" ^
-    --hidden-import "sqlalchemy" ^
-    --hidden-import "sqlalchemy.dialects.sqlite" ^
-    --hidden-import "docx" ^
-    --log-level WARN src\main.py
-
-if errorlevel 1 (
-    echo.
-    echo Erro ao gerar executavel!
-    pause
-    goto MENU
-)
-
-echo.
-echo Atualizando pasta final...
-set "PASTA_DIST=SistemaALS_Atualizado"
-if not exist "%PASTA_DIST%" mkdir "%PASTA_DIST%"
-if not exist "%PASTA_DIST%\data" mkdir "%PASTA_DIST%\data"
-if not exist "%PASTA_DIST%\img" mkdir "%PASTA_DIST%\img"
-if not exist "%PASTA_DIST%\backup" mkdir "%PASTA_DIST%\backup"
-if not exist "%PASTA_DIST%\output" mkdir "%PASTA_DIST%\output"
-
-move /Y "dist\SistemaManutencaoALS.exe" "%PASTA_DIST%\" >nul 2>&1
-if exist "data\sistema_als.db" copy /Y "data\sistema_als.db" "%PASTA_DIST%\data\sistema_als.db" >nul
-xcopy "img\*.*" "%PASTA_DIST%\img\" /E /I /Y /Q >nul 2>&1
-
-echo.
-echo Concluido com Sucesso! A pasta '%PASTA_DIST%' esta atualizada.
+echo Concluido com Sucesso! A pasta 'SistemaALS_Atualizado' esta atualizada.
 echo.
 pause
 goto MENU
@@ -122,11 +79,24 @@ echo ==========================================================
 echo        GERANDO INSTALADOR OFICIAL DO WINDOWS (SETUP)
 echo ==========================================================
 echo.
+echo Deseja recompilar o executavel com as alteracoes recentes de codigo?
+echo   [1] Sim, recompilar executavel e gerar instalador (Recomendado)
+echo   [2] Nao, usar executavel que ja esta em SistemaALS_Atualizado
+echo.
+set /p compilar="Digite a opcao [padrao 1]: "
+if "%compilar%"=="" set compilar=1
+
+if "%compilar%"=="1" (
+    echo.
+    echo Recompilando executavel primeiro...
+    call :EXECUTAR_BUILD_EXE
+    if errorlevel 1 goto MENU
+)
+
 if not exist "SistemaALS_Atualizado\SistemaManutencaoALS.exe" (
-    echo O executavel 'SistemaALS_Atualizado\SistemaManutencaoALS.exe' nao foi encontrado.
-    echo Gerando o executavel primeiro...
+    echo ERRO: Executavel 'SistemaALS_Atualizado\SistemaManutencaoALS.exe' nao encontrado!
     pause
-    goto GERAR_EXE
+    goto MENU
 )
 
 :: Localizacao automatica do compilador Inno Setup 6
@@ -168,6 +138,55 @@ echo.
 set /p abrir="Deseja abrir a pasta do instalador agora? (S/N): "
 if /i "%abrir%"=="S" explorer "dist_installer"
 goto MENU
+
+
+:EXECUTAR_BUILD_EXE
+call :VERIFICAR_TODAS_DEPENDENCIAS
+
+echo Limpando cache antigo...
+if exist build rmdir /s /q build 2>nul
+if exist dist rmdir /s /q dist 2>nul
+
+echo.
+echo Compilando com PyInstaller... (aguarde de 1 a 2 minutos)
+pyinstaller --noconfirm --onefile --windowed ^
+    --name "SistemaManutencaoALS" ^
+    --icon="img/logo ALS.png" ^
+    --add-data "img;img" ^
+    --add-data "src;src" ^
+    --collect-all "streamlit" ^
+    --collect-all "plotly" ^
+    --hidden-import "PySide6" ^
+    --hidden-import "qfluentwidgets" ^
+    --hidden-import "openpyxl" ^
+    --hidden-import "reportlab" ^
+    --hidden-import "PIL" ^
+    --hidden-import "pandas" ^
+    --hidden-import "sqlalchemy" ^
+    --hidden-import "sqlalchemy.dialects.sqlite" ^
+    --hidden-import "docx" ^
+    --log-level WARN src\main.py
+
+if errorlevel 1 (
+    echo.
+    echo Erro ao gerar executavel via PyInstaller!
+    pause
+    exit /b 1
+)
+
+echo.
+echo Atualizando pasta final SistemaALS_Atualizado...
+set "PASTA_DIST=SistemaALS_Atualizado"
+if not exist "%PASTA_DIST%" mkdir "%PASTA_DIST%"
+if not exist "%PASTA_DIST%\data" mkdir "%PASTA_DIST%\data"
+if not exist "%PASTA_DIST%\img" mkdir "%PASTA_DIST%\img"
+if not exist "%PASTA_DIST%\backup" mkdir "%PASTA_DIST%\backup"
+if not exist "%PASTA_DIST%\output" mkdir "%PASTA_DIST%\output"
+
+move /Y "dist\SistemaManutencaoALS.exe" "%PASTA_DIST%\" >nul 2>&1
+if exist "data\sistema_als.db" copy /Y "data\sistema_als.db" "%PASTA_DIST%\data\sistema_als.db" >nul
+xcopy "img\*.*" "%PASTA_DIST%\img\" /E /I /Y /Q >nul 2>&1
+exit /b 0
 
 
 :VERIFICAR_TODAS_DEPENDENCIAS

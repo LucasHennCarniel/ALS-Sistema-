@@ -14,6 +14,12 @@ if BASE_DIR not in sys.path:
 from src.app_qt import main
 
 if __name__ == "__main__":
+    # Garante que stdout/stderr não sejam nulos no modo --windowed do PyInstaller
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, 'w')
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+
     # Intercepta execução do servidor analítico Streamlit quando invocado como subprocesso
     if len(sys.argv) > 1 and sys.argv[1] == "--run-streamlit":
         from streamlit.web import cli as stcli
