@@ -1,0 +1,80 @@
+name: Build e Release Oficial do Sistema ALS
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compilar Executável e Instalador Windows
+    runs-on: windows-latest
+
+    steps:
+      - name: Baixar código-fonte
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest
+
+      - name: Executar testes automatizados (pytest)
+        run: |
+          pytest
+
+      - name: Compilar executável com PyInstaller
+        run: |
+          pyinstaller --noconfirm --onefile --windowed `
+            --name "SistemaManutencaoALS" `
+            --icon="img/logo ALS.png" `
+            --add-data "img;img" `
+            --add-data "src;src" `
+            --hidden-import "PySide6" `
+            --hidden-import "qfluentwidgets" `
+            --hidden-import "openpyxl" `
+            --hidden-import "reportlab" `
+            --hidden-import "PIL" `
+            --hidden-import "pandas" `
+            --hidden-import "sqlalchemy" `
+            --hidden-import "sqlalchemy.dialects.sqlite" `
+            --hidden-import "streamlit" `
+            --hidden-import "plotly" `
+            --hidden-import "docx" `
+            --log-level WARN src\main.py
+
+      - name: Estruturar pasta de distribuição final
+        run: |
+          New-Item -ItemType Directory -Force -Path "SistemaALS_Atualizado\data"
+          New-Item -ItemType Directory -Force -Path "SistemaALS_Atualizado\img"
+          New-Item -ItemType Directory -Force -Path "SistemaALS_Atualizado\backup"
+          New-Item -ItemType Directory -Force -Path "SistemaALS_Atualizado\output"
+          Move-Item -Force "dist\SistemaManutencaoALS.exe" "SistemaALS_Atualizado\"
+          Copy-Item -Force -Recurse "img\*" "SistemaALS_Atualizado\img\"
+          if (Test-Path "data\sistema_als.db") { Copy-Item -Force "data\sistema_als.db" "SistemaALS_Atualizado\data\" }
+
+      - name: Instalar Inno Setup e Compilar Instalador
+        run: |
+          choco install innosetup --no-progress -y
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+
+      - name: Publicar Release no GitHub
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        with:
+          name: Release ${{ github.ref_name }}
+          files: dist_installer/Instalador_SistemaALS_Setup.exe
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

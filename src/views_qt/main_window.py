@@ -216,6 +216,28 @@ class MainWindow(FluentWindow):
             self.settings_view.radio_cinza.setChecked(True)
             self.aplicar_modo_cinza()
 
+    def exibir_lembrete_atualizacao(self, update_info):
+        """Adiciona um botão discreto no menu lateral para atualizar quando desejar"""
+        try:
+            self.navigationInterface.addItem(
+                routeKey="btn_update_badge",
+                icon=FIF.SYNC,
+                text=f"Nova Versão ({update_info.versao})",
+                onClick=lambda: self._abrir_dialogo_atualizacao(update_info),
+                selectable=False,
+                position=NavigationItemPosition.BOTTOM
+            )
+        except Exception:
+            pass
+
+    def _abrir_dialogo_atualizacao(self, update_info):
+        """Abre o diálogo de atualização quando o usuário clica no badge"""
+        from src.views_qt.update_dialog import UpdateNotificationDialog, DownloadProgressDialog
+        dialog = UpdateNotificationDialog(update_info, self)
+        if dialog.exec() == UpdateNotificationDialog.Accepted:
+            progress_dialog = DownloadProgressDialog(update_info, parent=self)
+            progress_dialog.exec()
+
     def closeEvent(self, event):
         """Encerra o processo Streamlit em segundo plano ao fechar o aplicativo"""
         try:
@@ -223,3 +245,4 @@ class MainWindow(FluentWindow):
         except Exception:
             pass
         super().closeEvent(event)
+

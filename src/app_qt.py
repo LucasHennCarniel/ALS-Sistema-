@@ -1,5 +1,6 @@
 """
 Ponto de entrada da aplicação moderna (PySide6 + QFluentWidgets)
+Com Splash Screen animada e verificação de auto-atualização assíncrona
 """
 import sys
 import os
@@ -17,6 +18,8 @@ from src.controllers.veiculo_controller import VeiculoController
 from src.controllers.destino_controller import DestinoController
 from src.controllers.nota_controller import NotaController
 from src.views_qt.main_window import MainWindow
+from src.views_qt.splash_screen import ModernSplashScreen
+from src.views_qt.update_dialog import UpdateNotificationDialog, DownloadProgressDialog
 
 
 def main():
@@ -29,16 +32,33 @@ def main():
     app.setApplicationName("Sistema ALS")
     app.setOrganizationName("ALS Transportes")
     
+    # Exibe a SplashScreen animada
+    splash = ModernSplashScreen()
+    splash.show()
+    
     # Inicializa os Controllers
     manutencao_ctrl = ManutencaoController()
     veiculo_ctrl = VeiculoController()
     destino_ctrl = DestinoController()
     nota_ctrl = NotaController()
     
-    # Cria e exibe a janela moderna
+    # Instancia a janela principal
     window = MainWindow(manutencao_ctrl, veiculo_ctrl, destino_ctrl, nota_ctrl)
-    window.show()
     
+    def on_splash_concluido(update_info):
+        if update_info is not None and update_info.disponivel:
+            dialog = UpdateNotificationDialog(update_info)
+            if dialog.exec() == UpdateNotificationDialog.Accepted:
+                prog_dialog = DownloadProgressDialog(update_info)
+                prog_dialog.exec()
+                return
+            else:
+                # Se não for obrigatória e o usuário adiou, adiciona lembrete no menu
+                window.exibir_lembrete_atualizacao(update_info)
+
+        window.show()
+
+    splash.concluido.connect(on_splash_concluido)
     sys.exit(app.exec())
 
 
