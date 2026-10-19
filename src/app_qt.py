@@ -14,7 +14,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt, QLockFile
+from PySide6.QtCore import Qt, QLockFile, QTimer
 
 from src.config import DATA_DIR
 from src.controllers.manutencao_controller import ManutencaoController
@@ -23,7 +23,6 @@ from src.controllers.destino_controller import DestinoController
 from src.controllers.nota_controller import NotaController
 from src.views_qt.main_window import MainWindow
 from src.views_qt.splash_screen import ModernSplashScreen
-from src.views_qt.update_dialog import UpdateNotificationDialog, DownloadProgressDialog
 
 
 def _configurar_log():
@@ -68,35 +67,34 @@ def main():
     splash = ModernSplashScreen()
     splash.show()
     
-    logging.info("Splash exibida; iniciando controllers")
-    # Inicializa os Controllers
-    manutencao_ctrl = ManutencaoController()
-    veiculo_ctrl = VeiculoController()
-    destino_ctrl = DestinoController()
-    nota_ctrl = NotaController()
-    
-    logging.info("Controllers prontos; criando janela principal")
-    # Instancia a janela principal
-    window = MainWindow(manutencao_ctrl, veiculo_ctrl, destino_ctrl, nota_ctrl)
-    
-    logging.info("Janela principal criada")
+    logging.info("Splash exibida")
+    estado = {}
+
+    def construir_janela():
+        """Cria controllers e janela principal (depois do 1o paint da splash)"""
+        if "window" in estado:
+            return estado["window"]
+        logging.info("Iniciando controllers")
+        manutencao_ctrl = ManutencaoController()
+        veiculo_ctrl = VeiculoController()
+        destino_ctrl = DestinoController()
+        nota_ctrl = NotaController()
+        logging.info("Controllers prontos; criando janela principal")
+        estado["window"] = MainWindow(manutencao_ctrl, veiculo_ctrl, destino_ctrl, nota_ctrl)
+        logging.info("Janela principal criada")
+        return estado["window"]
 
     def on_splash_concluido(update_info):
         faulthandler.cancel_dump_traceback_later()
         logging.info("Splash concluida; update=%s", getattr(update_info, 'versao', None))
+        window = construir_janela()
         if update_info is not None and update_info.disponivel:
-            dialog = UpdateNotificationDialog(update_info)
-            if dialog.exec() == UpdateNotificationDialog.Accepted:
-                prog_dialog = DownloadProgressDialog(update_info)
-                prog_dialog.exec()
-                return
-            else:
-                # Se não for obrigatória e o usuário adiou, adiciona lembrete no menu
-                window.exibir_lembrete_atualizacao(update_info)
-
+            # Usuario adiou: deixa lembrete no menu lateral
+            window.exibir_lembrete_atualizacao(update_info)
         window.show()
 
     splash.concluido.connect(on_splash_concluido)
+    QTimer.singleShot(50, construir_janela)
     codigo = app.exec()
     lock.unlock()
     sys.exit(codigo)

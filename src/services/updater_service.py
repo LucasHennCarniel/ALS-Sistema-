@@ -199,7 +199,11 @@ class UpdaterService:
         flags = 0
         if os.name == "nt":
             flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
-        subprocess.Popen(comando, shell=False, close_fds=True, creationflags=flags)
+        # O exe reaberto pelo instalador NAO pode herdar o ambiente do PyInstaller deste processo:
+        # senao tenta usar a pasta _MEI atual (apagada ao sair) e falha com "Failed to load Python DLL"
+        env = {k: v for k, v in os.environ.items() if not k.startswith("_PYI") and k != "_MEIPASS2"}
+        env["PYINSTALLER_RESET_ENVIRONMENT"] = "1"
+        subprocess.Popen(comando, shell=False, close_fds=True, creationflags=flags, env=env)
 
         # Encerramento imediato (sys.exit dentro de slot Qt nao finaliza o processo)
         os._exit(0)
