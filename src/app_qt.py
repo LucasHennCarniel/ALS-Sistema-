@@ -16,12 +16,8 @@ if BASE_DIR not in sys.path:
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QLockFile, QTimer
 
-from src.config import DATA_DIR
-from src.controllers.manutencao_controller import ManutencaoController
-from src.controllers.veiculo_controller import VeiculoController
-from src.controllers.destino_controller import DestinoController
-from src.controllers.nota_controller import NotaController
-from src.views_qt.main_window import MainWindow
+from qfluentwidgets import setTheme, Theme
+from src.config import DATA_DIR, APP_VERSION
 from src.views_qt.splash_screen import ModernSplashScreen
 
 
@@ -46,7 +42,7 @@ def _configurar_log():
 
 def main():
     _configurar_log()
-    logging.info("Iniciando Sistema ALS")
+    logging.info("Iniciando Sistema ALS v%s (frozen=%s)", APP_VERSION, getattr(sys, "frozen", False))
     # Habilitar High DPI scaling no Windows
     QApplication.setHighDpiScaleFactorRoundingPolicy(
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
@@ -63,6 +59,8 @@ def main():
         return
     
     logging.info("QApplication criada")
+    # Tema escuro desde a splash (a MainWindow mantem o mesmo padrao)
+    setTheme(Theme.DARK)
     # Exibe a SplashScreen animada
     splash = ModernSplashScreen()
     splash.show()
@@ -74,6 +72,13 @@ def main():
         """Cria controllers e janela principal (depois do 1o paint da splash)"""
         if "window" in estado:
             return estado["window"]
+        logging.info("Carregando modulos principais")
+        # Imports pesados (pandas, SQLAlchemy, QtWebEngine) ficam aqui para a splash aparecer antes
+        from src.controllers.manutencao_controller import ManutencaoController
+        from src.controllers.veiculo_controller import VeiculoController
+        from src.controllers.destino_controller import DestinoController
+        from src.controllers.nota_controller import NotaController
+        from src.views_qt.main_window import MainWindow
         logging.info("Iniciando controllers")
         manutencao_ctrl = ManutencaoController()
         veiculo_ctrl = VeiculoController()
@@ -82,6 +87,8 @@ def main():
         logging.info("Controllers prontos; criando janela principal")
         estado["window"] = MainWindow(manutencao_ctrl, veiculo_ctrl, destino_ctrl, nota_ctrl)
         logging.info("Janela principal criada")
+        # A janela foi construida sem travar: o dump de travamento deixa de ser necessario
+        faulthandler.cancel_dump_traceback_later()
         return estado["window"]
 
     def on_splash_concluido(update_info):

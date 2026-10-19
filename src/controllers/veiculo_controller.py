@@ -1,89 +1,43 @@
 from src.models.veiculo_model import VeiculoModel
-import logging
+from src.services.veiculo.obter_veiculos_ativos_formatado import obter_veiculos_ativos_formatado
+from src.services.veiculo.extrair_placa_da_selecao import extrair_placa_da_selecao
+from src.services.veiculo.adicionar_veiculo import adicionar_veiculo
+from src.services.veiculo.atualizar_veiculo import atualizar_veiculo
+from src.services.veiculo.excluir_veiculo import excluir_veiculo
+from src.services.veiculo.atualizar_km import atualizar_km
+
 
 class VeiculoController:
     """
-    Controlador para gerenciar lógicas de negócio de Veículos
+    Controlador de Veículos: encaminha as ações da interface para os services de regra de negócio
     """
-    
+
     def __init__(self, model=None):
         self.model = model or VeiculoModel()
-        
+
     def obter_todos(self):
         return self.model.obter_todos()
-        
+
     def obter_veiculo_por_placa(self, placa):
         return self.model.obter_por_placa(placa)
-        
+
     def obter_veiculos_ativos_formatado(self):
-        """Retorna lista formatada 'PLACA - TIPO - DESCRICAO' para comboboxes"""
-        ativos = self.model.obter_ativos()
-        lista = []
-        for v in ativos:
-            texto = f"{v['placa']} - {v['tipo_veiculo']}"
-            if v['descricao']:
-                texto += f" - {v['descricao']}"
-            lista.append(texto)
-        return lista
-        
+        return obter_veiculos_ativos_formatado(self.model)
+
     def extrair_placa_da_selecao(self, texto_selecao):
-        """Extrai a placa do texto selecionado no combobox"""
-        if ' - ' in texto_selecao:
-            return texto_selecao.split(' - ')[0].strip()
-        return texto_selecao.strip()
-        
+        return extrair_placa_da_selecao(texto_selecao)
+
     def adicionar_veiculo(self, tipo, placa, descricao='', km_inicial=0):
-        placa = placa.upper().strip()
-        tipo = tipo.upper().strip() if tipo else 'OUTRO'
-        if not placa:
-            return False, "A Placa é obrigatória!"
-            
-        try:
-            if self.model.obter_por_placa(placa):
-                return False, "Placa já cadastrada!"
-                
-            km_inicial = float(km_inicial) if km_inicial else 0
-            self.model.inserir(tipo, placa, descricao, km_inicial)
-            return True, "Veículo cadastrado com sucesso!"
-        except Exception as e:
-            logging.error(f"Erro ao cadastrar veiculo: {e}")
-            return False, f"Erro ao cadastrar veículo: {e}"
-            
+        return adicionar_veiculo(self.model, tipo, placa, descricao, km_inicial)
+
     def atualizar_veiculo(self, placa_antiga, tipo, nova_placa, descricao, ativo, ultima_km=None):
-        nova_placa = nova_placa.upper().strip()
-        placa_antiga = placa_antiga.upper().strip()
-        tipo = tipo.upper().strip() if tipo else 'OUTRO'
-        
-        if not nova_placa:
-            return False, "A Placa é obrigatória!"
-            
-        try:
-            if nova_placa != placa_antiga and self.model.obter_por_placa(nova_placa):
-                return False, "A nova placa já está cadastrada em outro veículo!"
-                
-            self.model.atualizar(placa_antiga, tipo, nova_placa, descricao, ativo, ultima_km=ultima_km)
-            return True, "Veículo atualizado com sucesso!"
-        except Exception as e:
-            logging.error(f"Erro ao atualizar veiculo: {e}")
-            return False, f"Erro ao atualizar veículo: {e}"
-            
+        return atualizar_veiculo(self.model, placa_antiga, tipo, nova_placa, descricao, ativo, ultima_km)
+
     def excluir_veiculo(self, placa):
-        try:
-            sucesso = self.model.deletar(placa)
-            if sucesso:
-                return True, "Veículo excluído com sucesso!"
-            return False, "Veículo não encontrado."
-        except Exception as e:
-            logging.error(f"Erro ao excluir veiculo: {e}")
-            return False, f"Erro ao excluir veículo: {e}"
-            
+        return excluir_veiculo(self.model, placa)
+
     def atualizar_km(self, placa, nova_km):
-        try:
-            nova_km = float(nova_km)
-            return self.model.atualizar_km(placa, nova_km)
-        except Exception as e:
-            logging.error(f"Erro ao atualizar km: {e}")
-            return False
-            
+        return atualizar_km(self.model, placa, nova_km)
+
     def obter_estatisticas(self):
         return self.model.obter_estatisticas()

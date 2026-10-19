@@ -44,3 +44,6 @@ dist_installer/
 data/sistema_als.db
 data/sistema_als.db-shm
 data/sistema_als.db-wal
+
+# Logs de execucao e arquivos temporarios do SQLite WAL
+data/logs/

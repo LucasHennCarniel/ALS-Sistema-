@@ -21,6 +21,7 @@ from src.services.updater_service import (
 ETAPA_CHECANDO, ETAPA_AVISO, ETAPA_DOWNLOAD = 0, 1, 2
 ALTURAS = {ETAPA_CHECANDO: 320, ETAPA_AVISO: 540, ETAPA_DOWNLOAD: 380}
 TIMEOUT_CHECAGEM_MS = 6000
+COR_TEXTO_SUAVE = "#94A3B8"
 
 
 def _caminho_logo():
@@ -58,8 +59,8 @@ class ModernSplashScreen(QWidget):
         self.card.setObjectName("cardSplash")
         self.card.setStyleSheet("""
             QWidget#cardSplash {
-                background-color: #F3F6F9;
-                border: 1px solid #D0D7DE;
+                background-color: #1E2227;
+                border: 1px solid #333842;
                 border-radius: 16px;
             }
         """)
@@ -76,13 +77,13 @@ class ModernSplashScreen(QWidget):
 
         self.lbl_titulo = TitleLabel("Sistema ALS", self.card)
         self.lbl_titulo.setAlignment(Qt.AlignCenter)
-        self.lbl_titulo.setStyleSheet("font-size: 20px; font-weight: bold; color: #1E293B;")
+        self.lbl_titulo.setStyleSheet("font-size: 20px; font-weight: bold; color: #F1F5F9;")
         layout.addWidget(self.lbl_titulo)
 
         self.lbl_status = CaptionLabel("Inicializando e verificando atualizações...", self.card)
         self.lbl_status.setAlignment(Qt.AlignCenter)
         self.lbl_status.setWordWrap(True)
-        self.lbl_status.setStyleSheet("color: #64748B; font-size: 12px;")
+        self.lbl_status.setStyleSheet(f"color: {COR_TEXTO_SUAVE}; font-size: 12px;")
         layout.addWidget(self.lbl_status)
 
         self.etapas = QStackedWidget(self.card)
@@ -110,24 +111,26 @@ class ModernSplashScreen(QWidget):
         lay.setSpacing(8)
 
         self.lbl_aviso_titulo = SubtitleLabel("Nova Versão Disponível", pagina)
-        self.lbl_aviso_titulo.setStyleSheet("color: #1E293B; font-weight: bold;")
+        self.lbl_aviso_titulo.setStyleSheet("color: #F1F5F9; font-weight: bold;")
         lay.addWidget(self.lbl_aviso_titulo)
 
         self.lbl_aviso_msg = BodyLabel("", pagina)
         self.lbl_aviso_msg.setWordWrap(True)
-        self.lbl_aviso_msg.setStyleSheet("color: #475569; font-size: 13px;")
+        self.lbl_aviso_msg.setStyleSheet("color: #CBD5E1; font-size: 13px;")
         lay.addWidget(self.lbl_aviso_msg)
 
-        lay.addWidget(CaptionLabel("O que mudou nesta versão:", pagina))
+        rotulo_notas = CaptionLabel("O que mudou nesta versão:", pagina)
+        rotulo_notas.setStyleSheet(f"color: {COR_TEXTO_SUAVE};")
+        lay.addWidget(rotulo_notas)
         self.txt_notas = QTextEdit(pagina)
         self.txt_notas.setReadOnly(True)
         self.txt_notas.setStyleSheet("""
             QTextEdit {
-                background-color: #FFFFFF;
-                border: 1px solid #CBD5E1;
+                background-color: #14171B;
+                border: 1px solid #333842;
                 border-radius: 8px;
                 padding: 8px;
-                color: #334155;
+                color: #E2E8F0;
                 font-size: 12px;
             }
         """)
@@ -160,7 +163,7 @@ class ModernSplashScreen(QWidget):
         )
         self.lbl_download_info.setAlignment(Qt.AlignCenter)
         self.lbl_download_info.setWordWrap(True)
-        self.lbl_download_info.setStyleSheet("color: #64748B;")
+        self.lbl_download_info.setStyleSheet(f"color: {COR_TEXTO_SUAVE};")
         lay.addWidget(self.lbl_download_info)
 
         # Botoes exibidos apenas se o download falhar
@@ -223,7 +226,7 @@ class ModernSplashScreen(QWidget):
             self.btn_depois.setText("Fechar Sistema")
         else:
             self.lbl_aviso_titulo.setText("Nova Versão Disponível")
-            self.lbl_aviso_titulo.setStyleSheet("color: #1E293B; font-weight: bold;")
+            self.lbl_aviso_titulo.setStyleSheet("color: #F1F5F9; font-weight: bold;")
             self.btn_depois.setText("Lembrar Mais Tarde")
         self.lbl_status.setText(f"Versão atual: v{APP_VERSION}  →  nova versão: {info.versao}")
         msg = f"A versão {info.versao} está pronta para instalação."
@@ -243,7 +246,7 @@ class ModernSplashScreen(QWidget):
     # --------------------------------------------------- Etapa 3: download
     def _iniciar_download(self):
         self.lbl_status.setText("Baixando nova versão...")
-        self.lbl_status.setStyleSheet("color: #64748B; font-size: 12px;")
+        self.lbl_status.setStyleSheet(f"color: {COR_TEXTO_SUAVE}; font-size: 12px;")
         self.linha_erro.hide()
         self.barra_download.setValue(0)
         self._ir_para(ETAPA_DOWNLOAD)
