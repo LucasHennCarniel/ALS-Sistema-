@@ -55,4 +55,7 @@ Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"; IconFilena
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\img\logo ALS.ico"
 
 [Run]
+; Instalacao interativa: oferece abrir o sistema ao final
 Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Filename: "{app}\{#MyAppExeName}"; Flags: nowait postinstall skipifsilent
+; Atualizacao automatica (silenciosa): reabre o sistema sem intervencao do usuario
+Filename: "{app}\{#MyAppExeName}"; Flags: nowait; Check: WizardSilent

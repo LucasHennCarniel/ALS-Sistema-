@@ -184,12 +184,25 @@ class UpdaterService:
         except Exception:
             pass
 
-        # Dispara o instalador
-        comando = [caminho_instalador, "/SILENT", "/SUPPRESSMSGBOXES", "/DIR=C:\\Sistema ALS"]
-        subprocess.Popen(comando, shell=False)
+        # Encerra o servidor do dashboard: o processo filho mantem o .exe bloqueado
+        try:
+            from PySide6.QtWidgets import QApplication
+            for w in QApplication.topLevelWidgets():
+                dash = getattr(w, "dashboard_view", None)
+                if dash is not None:
+                    dash.encerrar_servidor()
+        except Exception:
+            pass
 
-        # Encerra o processo Python/Qt atual
-        sys.exit(0)
+        # Instala sobre a pasta atual do app (sem forcar caminho) e o instalador reabre o sistema
+        comando = [caminho_instalador, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        flags = 0
+        if os.name == "nt":
+            flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        subprocess.Popen(comando, shell=False, close_fds=True, creationflags=flags)
+
+        # Encerramento imediato (sys.exit dentro de slot Qt nao finaliza o processo)
+        os._exit(0)
 
 
 class CheckUpdateThread(QThread):

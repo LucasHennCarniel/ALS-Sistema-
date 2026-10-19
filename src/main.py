@@ -11,9 +11,12 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from src.app_qt import main
+import multiprocessing
 
 if __name__ == "__main__":
+    # Impede que processos filhos (multiprocessing) reabram a janela do sistema no .exe
+    multiprocessing.freeze_support()
+
     # Garante que stdout/stderr não sejam nulos no modo --windowed do PyInstaller
     if sys.stdout is None:
         sys.stdout = open(os.devnull, 'w')
@@ -29,4 +32,5 @@ if __name__ == "__main__":
         sys.argv = ["streamlit", "run", script_path] + sys.argv[2:]
         sys.exit(stcli.main())
     else:
+        from src.app_qt import main
         main()

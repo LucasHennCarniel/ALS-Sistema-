@@ -30,7 +30,19 @@ jobs:
           pip install -r requirements.txt
           pip install pytest
 
+      - name: Sincronizar versão do app com a tag da release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $v = "${{ github.ref_name }}".TrimStart('v')
+          (Get-Content src\config.py -Raw) -replace 'APP_VERSION = "[^"]*"', "APP_VERSION = `"$v`"" | Set-Content src\config.py -NoNewline -Encoding utf8
+          (Get-Content installer.iss -Raw) -replace '#define MyAppVersion "[^"]*"', "#define MyAppVersion `"$v`"" | Set-Content installer.iss -NoNewline -Encoding utf8
+          Select-String -Path src\config.py -Pattern 'APP_VERSION'
+          Select-String -Path installer.iss -Pattern 'MyAppVersion "'
+
       - name: Executar testes automatizados (pytest)
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           pytest
 
@@ -69,9 +81,15 @@ jobs:
           choco install innosetup --no-progress -y
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
+      - name: Guardar instalador como artefato do workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: Instalador_SistemaALS_Setup
+          path: dist_installer/Instalador_SistemaALS_Setup.exe
+
       - name: Publicar Release no GitHub
         uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: Release ${{ github.ref_name }}
           files: dist_installer/Instalador_SistemaALS_Setup.exe

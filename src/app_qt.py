@@ -4,6 +4,7 @@ Com Splash Screen animada e verificação de auto-atualização assíncrona
 """
 import sys
 import os
+import tempfile
 
 # Adiciona o diretório raiz ao path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -11,7 +12,7 @@ if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QLockFile
 
 from src.controllers.manutencao_controller import ManutencaoController
 from src.controllers.veiculo_controller import VeiculoController
@@ -31,6 +32,12 @@ def main():
     app = QApplication(sys.argv)
     app.setApplicationName("Sistema ALS")
     app.setOrganizationName("ALS Transportes")
+
+    # Instância única: uma segunda abertura do .exe não cria outra janela
+    lock = QLockFile(os.path.join(tempfile.gettempdir(), "sistema_als_instancia.lock"))
+    lock.setStaleLockTime(0)
+    if not lock.tryLock(100):
+        return
     
     # Exibe a SplashScreen animada
     splash = ModernSplashScreen()
@@ -59,7 +66,9 @@ def main():
         window.show()
 
     splash.concluido.connect(on_splash_concluido)
-    sys.exit(app.exec())
+    codigo = app.exec()
+    lock.unlock()
+    sys.exit(codigo)
 
 
 if __name__ == "__main__":
