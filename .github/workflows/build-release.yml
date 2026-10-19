@@ -81,6 +81,13 @@ jobs:
           choco install innosetup --no-progress -y
           & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
 
+      - name: Validar tamanho do instalador (deve ser um unico arquivo completo)
+        shell: pwsh
+        run: |
+          $f = Get-Item "dist_installer\Instalador_SistemaALS_Setup.exe"
+          Get-ChildItem dist_installer | Format-Table Name, Length
+          if ($f.Length -lt 20MB) { throw "Instalador com apenas $($f.Length) bytes: payload ausente (verifique UseSetupLdr/DiskSpanning)" }
+
       - name: Guardar instalador como artefato do workflow
         uses: actions/upload-artifact@v4
         with:
