@@ -1,11 +1,11 @@
 # Sistema de Gestão de Manutenção — ALS Transportes
-**Documentação funcional e técnica | Versão 2.0 — dezembro de 2025**
+**Documentação funcional e técnica | Base funcional: versão 2.0 (dezembro de 2025) | Atualização da documentação: outubro de 2026**
 
 O **Sistema de Gestão de Manutenção ALS** é uma aplicação desktop desenvolvida para organizar e acompanhar as manutenções da frota da ALS Transportes. A solução centraliza os registros de entrada e saída dos veículos, os serviços realizados, os períodos de permanência em manutenção e os dados necessários para consultas e relatórios.
 
-A versão descrita neste documento opera localmente no Windows, utiliza banco de dados SQLite e pode ser distribuída como executável, sem exigir a instalação do Python no computador do usuário final.
+A aplicação é executada em computadores Windows e utiliza banco de dados SQLite local. A distribuição passou a contar com um instalador, um fluxo de CI/CD configurado no GitHub Actions e um processo de atualização das instalações existentes. Assim, as correções e melhorias podem chegar às máquinas de destino sem o envio manual de um novo executável ou instalador a cada alteração. O usuário final não precisa instalar o Python separadamente.
 
-> **Escopo desta documentação:** as funcionalidades e especificações abaixo correspondem à versão 2.0 descrita no material original. Acesso simultâneo por vários computadores, sincronização em rede e acesso remoto não fazem parte do escopo documentado desta versão.
+> **Escopo desta documentação:** as funcionalidades operacionais abaixo foram preservadas da documentação da versão 2.0. A instalação e a distribuição foram atualizadas conforme as melhorias relatadas em outubro de 2026. A atualização automática da aplicação não deve ser confundida com sincronização do banco de dados: compartilhamento de registros entre computadores, acesso remoto e trabalho multiusuário não estão comprovados pelo material disponível.
 
 ---
 
@@ -21,6 +21,8 @@ O objetivo do sistema é substituir controles manuais ou dispersos por um proces
 - Indicadores operacionais para acompanhamento da frota.
 - Exportação de relatórios em Excel, PDF, Word e texto.
 - Geração automática de cópias de segurança após alterações relevantes.
+- Instalação inicial simplificada por instalador.
+- Processo automatizado de integração e entrega com GitHub Actions, reduzindo a necessidade de distribuição manual de novas versões.
 
 ### 1.1. Organização da interface
 
@@ -217,38 +219,69 @@ Como o material original não descreve uma política automática de retenção, 
 
 ---
 
-## 9. Instalação e execução
+## 9. Instalação, distribuição e atualização do sistema
 
-### 9.1. Uso do executável
+O processo de distribuição foi modernizado em outubro de 2026. Inicialmente, a aplicação era entregue mediante cópia de um arquivo executável ou de uma pasta completa. Agora, existe um instalador para a primeira implantação e um processo automatizado para a entrega de alterações às instalações já existentes.
 
-Na distribuição do sistema, execute `SistemaManutencaoALS.exe`. O executável foi pensado para funcionar sem uma instalação separada do Python.
+### 9.1. Instalação inicial
 
-Na versão que acompanha a base previamente cadastrada, o arquivo de dados precisa estar disponível conforme a estrutura esperada pela aplicação. Copiar somente o executável não garante, por si só, que os 141 veículos estejam presentes, a menos que o empacotamento tenha incluído ou provisionado o banco inicial.
+Para disponibilizar o sistema em um novo computador:
 
-### 9.2. Distribuição da pasta completa
+1. Obtenha o instalador correspondente à versão disponibilizada para a ALS Transportes.
+2. Execute o instalador e siga as instruções apresentadas.
+3. Inicie o **Sistema de Gestão de Manutenção ALS** após a conclusão da instalação.
+4. Verifique se os cadastros e as funcionalidades esperadas estão disponíveis na estação.
 
-Para preservar a estrutura e os dados da versão disponibilizada:
+A instalação inicial é diferente da atualização de uma estação que já possui o sistema. O instalador precisa ser disponibilizado para o primeiro uso, enquanto as correções posteriores não exigem que o desenvolvedor reenvie manualmente um novo `.exe` ou instalador a cada máquina.
 
-1. Copie a pasta de distribuição do sistema.
-2. Verifique se o banco em `data/` acompanha a cópia.
-3. Confirme as permissões de leitura e gravação nas pastas de dados, backups e relatórios.
-4. Execute `SistemaManutencaoALS.exe`.
-5. Valide a listagem dos veículos e a gravação de um registro de teste no ambiente de destino.
+### 9.2. Entrega contínua de versões
 
-### 9.3. Compatibilidade
+O projeto passou a utilizar **GitHub Actions** para automatizar etapas do processo de integração e entrega (CI/CD). De acordo com o funcionamento relatado, uma alteração publicada pelo desenvolvedor pode ser processada e distribuída pelo fluxo configurado, sem a repetição do procedimento manual de copiar executáveis para os demais computadores.
 
-O sistema é destinado a computadores com Windows. O material anterior mencionava Windows 7 ou superior, mas a compatibilidade real depende da versão do Python utilizada no empacotamento e das dependências do executável. Portanto, a versão do Windows de destino deve ser testada antes da distribuição.
+O fluxo operacional é descrito em alto nível a seguir:
 
-O uso documentado é local e offline. Este documento não prevê acesso multiusuário, autenticação de usuários nem sincronização de dados entre instalações.
+1. **Desenvolvimento:** uma correção ou melhoria é implementada no código-fonte.
+2. **Versionamento:** a alteração é enviada ao repositório Git que concentra o projeto.
+3. **Automação:** o workflow do GitHub Actions executa as etapas de preparação, empacotamento e/ou publicação definidas na configuração do projeto.
+4. **Disponibilização:** a nova versão é disponibilizada pelo canal adotado na implantação.
+5. **Atualização das estações:** o mecanismo de atualização utilizado no sistema permite que as instalações existentes recebam a nova versão sem envio manual de arquivos pelo desenvolvedor.
+
+> **Importante:** o GitHub Actions executa os workflows de automação, mas não atualiza sozinho os programas instalados nos computadores. Para que o processo funcione de ponta a ponta, também é necessário um meio de disponibilizar as versões e um mecanismo que as aplique no destino. Como os arquivos do workflow e do atualizador não foram fornecidos, os nomes das ações, gatilhos, verificações de versão e procedimentos internos de instalação não são especificados aqui.
+
+### 9.3. Componentes da distribuição
+
+| Componente | Responsabilidade |
+| :--- | :--- |
+| **Instalador** | Preparar o computador para o primeiro uso da aplicação. |
+| **Executável da aplicação** | Executar a interface e as funcionalidades do sistema na estação. |
+| **GitHub Actions** | Automatizar as rotinas configuradas de integração, empacotamento e entrega de novas versões. |
+| **Mecanismo de atualização** | Permitir que uma instalação existente receba correções sem a transferência manual de um novo executável pelo desenvolvedor. |
+| **Banco de dados SQLite** | Armazenar os dados operacionais mantidos pela instalação, conforme a arquitetura local documentada. |
+
+### 9.4. Atualização da aplicação não é sincronização de dados
+
+Com a nova distribuição, o software pode ser atualizado em diferentes computadores. Isso não significa, por si só, que os registros de manutenção estejam compartilhados entre eles.
+
+Na arquitetura SQLite local descrita nesta documentação, cada instalação pode ter sua própria base de dados. Caso seja necessário que vários usuários consultem e alterem os mesmos registros simultaneamente, será preciso documentar e validar uma solução específica de compartilhamento ou centralização dos dados.
+
+Por segurança, o processo de atualização deve preservar o banco de dados e as informações operacionais existentes. Essa é uma verificação recomendada, não uma garantia técnica aferida nos arquivos do instalador e do workflow.
+
+### 9.5. Requisitos e compatibilidade
+
+A aplicação é destinada a Windows e não exige a instalação manual do interpretador Python quando distribuída em formato empacotado. A versão mínima do Windows deve ser validada com o instalador e as dependências efetivamente utilizados.
+
+As funcionalidades baseadas em SQLite local podem operar sem conexão com a internet. A obtenção de novas versões, contudo, depende de acesso ao canal de atualização configurado, quando esse canal for remoto.
 
 ---
 
 ## 10. Estrutura do projeto
 
-A organização informada para a aplicação é a seguinte:
+A organização de referência da aplicação e de seu código-fonte é a seguinte. A localização exata dos arquivos do instalador e do atualizador depende da implementação atual:
 
 ```text
 Sistema Manutenção ALS/
+├── .github/
+│   └── workflows/              # Fluxos do GitHub Actions (CI/CD)
 ├── data/
 │   └── sistema_als.db         # Banco de dados SQLite
 ├── img/                       # Imagens e identidade visual
@@ -264,7 +297,7 @@ Sistema Manutenção ALS/
     └── interface_destinos.py  # Interface de cadastro de destinos
 ```
 
-Arquivos auxiliares, como scripts de empacotamento e `requirements.txt`, são utilizados no ambiente de desenvolvimento.
+Arquivos auxiliares, como scripts de empacotamento, `requirements.txt` e configurações do instalador/atualizador, integram o processo de desenvolvimento e distribuição. A árvore acima representa os componentes documentados e a convenção de configuração do GitHub Actions; os caminhos específicos devem ser conferidos no repositório.
 
 ---
 
@@ -280,7 +313,10 @@ Arquivos auxiliares, como scripts de empacotamento e `requirements.txt`, são ut
 | **Relatórios Word** | python-docx |
 | **Relatórios Excel** | openpyxl |
 | **Manipulação de imagens** | Pillow |
-| **Empacotamento** | PyInstaller |
+| **Empacotamento** | PyInstaller (conforme a base técnica documentada) |
+| **Instalação** | Instalador para implantação inicial (ferramenta não informada) |
+| **CI/CD** | GitHub Actions |
+| **Atualização das estações** | Processo automatizado relatado; implementação específica não fornecida |
 
 ### 11.1. Persistência e atualização de dados
 
@@ -314,21 +350,21 @@ python src/main.py
 
 O material anterior mencionava Python 3.8 ou superior como requisito geral, enquanto as especificações técnicas registram Python 3.13. Para reproduzir a versão documentada com mais fidelidade, utilize o ambiente de desenvolvimento efetivamente validado para o projeto.
 
-### 11.4. Gerar o executável
+### 11.4. Empacotamento e distribuição
 
-Execute o script de empacotamento:
+A documentação anterior descrevia a geração local do executável pelo script:
 
 ```bat
 GERAR_EXECUTAVEL.bat
 ```
 
-Ao final do processo, o arquivo gerado é esperado no caminho:
+Na configuração anterior, o arquivo gerado era esperado no caminho:
 
 ```text
 dist\SistemaManutencaoALS.exe
 ```
 
-Antes de entregar o executável, valide a inicialização, o acesso ao banco, a gravação dos registros e a emissão dos relatórios em um computador de destino.
+Com a implantação de CI/CD, o fluxo automatizado do GitHub Actions passou a fazer parte da estratégia principal de distribuição. O script manual permanece aqui como referência histórica ou alternativa de desenvolvimento, caso ainda exista na estrutura atual. Antes de publicar atualizações, valide a inicialização, a preservação do banco, a gravação de registros, a emissão de relatórios e o funcionamento da atualização em uma estação de teste.
 
 ---
 
@@ -356,13 +392,15 @@ O operador filtra os registros do intervalo desejado, por exemplo, `01/12/2025` 
 | **A contagem de dias parece desatualizada** | Utilize **Atualizar** ou feche e abra novamente o sistema. Confira as datas do registro. |
 | **Não é possível excluir um veículo ou destino** | Verifique se o item está associado a registros existentes. |
 | **A pasta de backups ocupa muito espaço** | Revise os arquivos antigos, mantenha cópias válidas e, preferencialmente, salve uma cópia fora do computador. |
-| **O executável abre sem os dados esperados** | Confira se o arquivo SQLite foi distribuído no local correto e se a aplicação possui acesso à pasta `data/`. |
+| **O executável abre sem os dados esperados** | Confira a localização do arquivo SQLite e as permissões de leitura e gravação na pasta `data/`. |
+| **Uma estação não recebeu uma nova versão** | Verifique a execução do workflow no GitHub Actions, a disponibilização da versão e o comportamento do mecanismo de atualização da estação. |
+| **Dados de manutenção parecem diferentes entre dois computadores** | Confirme onde está armazenado o banco utilizado por cada instalação. Atualização automática do aplicativo não equivale à sincronização dos dados. |
 
 ---
 
 ## 14. Verificação e documentação complementar
 
-A documentação anterior registra testes sobre 12 funcionalidades, com resultado informado de 100% de sucesso na verificação realizada à época. Esse registro se refere à versão e ao ambiente testados e não dispensa uma nova validação após mudanças no código, nas dependências ou na forma de distribuição.
+A documentação anterior registra testes sobre 12 funcionalidades, com resultado informado de 100% de sucesso na verificação realizada à época. Esse registro se refere à versão e ao ambiente testados e não comprova o funcionamento do instalador ou do novo CI/CD. Após as mudanças de distribuição, recomenda-se validar o processo completo: instalação inicial, publicação de uma alteração, aplicação da atualização em outra estação, preservação dos dados locais e possibilidade de recuperação diante de falhas.
 
 Arquivos complementares mencionados no projeto:
 
@@ -381,5 +419,21 @@ Arquivos complementares mencionados no projeto:
 | **Versão documentada** | 2.0 |
 | **Referência da versão** | Dezembro de 2025 |
 | **Plataforma** | Windows (aplicação desktop) |
-| **Modalidade de operação** | Local, sem necessidade de conexão com a internet |
+| **Modalidade de operação** | Dados locais; acesso ao canal de distribuição necessário para obter atualizações remotas |
+| **Distribuição** | Instalador para primeiro uso e atualizações posteriores sem reenvio manual de executáveis |
+| **Integração e entrega** | GitHub Actions (CI/CD) |
 | **Tipo de licença informado** | Proprietária |
+
+---
+
+## 16. Evolução recente da distribuição
+
+Em outubro de 2026, foram incorporadas as seguintes melhorias à entrega do sistema:
+
+- **Instalador dedicado:** simplificação do procedimento de implantação em novos computadores.
+- **Pipeline CI/CD com GitHub Actions:** automatização do processo configurado para preparar e disponibilizar alterações do aplicativo.
+- **Atualização sem envio manual:** eliminação da rotina anterior de encaminhar um novo arquivo `.exe` ou instalador para cada estação sempre que uma correção fosse implementada.
+
+Esses avanços melhoram a manutenção e a distribuição do software. Eles não alteram, isoladamente, o modelo de persistência SQLite local nem demonstram acesso simultâneo aos mesmos registros por múltiplas estações.
+
+> **Detalhes pendentes para documentação técnica completa:** gatilhos do workflow, nomes dos arquivos de instalação, ferramenta empregada para criar o instalador, publicação dos artefatos, política de versões, funcionamento do atualizador e estratégia de reversão de uma atualização com falha.
