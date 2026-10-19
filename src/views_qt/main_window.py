@@ -1,6 +1,6 @@
 """
 Janela Principal Moderna do Sistema ALS usando QFluentWidgets (Fluent Design)
-Com Tema Cinza Suave (Alto Contraste) por padrão e Dashboard Streamlit no Menu Lateral
+Com Tema Escuro por padrão (Cinza Suave de Alto Contraste como alternativa) e Dashboard Streamlit no Menu Lateral
 """
 import os
 from PySide6.QtCore import Qt, QSize
@@ -42,7 +42,7 @@ class SettingsView(QWidget):
         self.radio_cinza = RadioButton("Modo Padrão Cinza Suave (Alto Contraste ALS)", self.card_tema)
         self.radio_escuro = RadioButton("Modo Escuro (Dark Mode)", self.card_tema)
         
-        self.radio_cinza.setChecked(True)
+        self.radio_escuro.setChecked(True)
         self.radio_cinza.toggled.connect(lambda c: c and self.main_win.aplicar_modo_cinza())
         self.radio_escuro.toggled.connect(lambda c: c and self.main_win.aplicar_modo_escuro())
         
@@ -69,7 +69,7 @@ class SettingsView(QWidget):
 
 
 class MainWindow(FluentWindow):
-    """Janela Principal com Fluent Design (Windows 11) em Cinza de Alto Contraste"""
+    """Janela Principal com Fluent Design (Windows 11), tema escuro por padrão"""
     
     def __init__(self, manutencao_ctrl, veiculo_ctrl, destino_ctrl, nota_ctrl):
         super().__init__()
@@ -77,11 +77,11 @@ class MainWindow(FluentWindow):
         self.veiculo_ctrl = veiculo_ctrl
         self.destino_ctrl = destino_ctrl
         self.nota_ctrl = nota_ctrl
-        self.modo_atual = "cinza"
+        self.modo_atual = "escuro"
         
         self._init_window()
         self._init_navigation()
-        self.aplicar_modo_cinza()
+        self.aplicar_modo_escuro()
 
     def _init_window(self):
         self.setWindowTitle("Sistema de Gestão de Manutenção - ALS")
