@@ -6,6 +6,7 @@ garantia de integridade, backup preventivo e execução silenciosa do instalador
 import os
 import sys
 import json
+import logging
 import shutil
 import subprocess
 import urllib.request
@@ -82,6 +83,7 @@ class UpdaterService:
             nome_release = dados.get("name", "")
             corpo = dados.get("body", "")
 
+            logging.info("Checagem de atualizacao: local=%s remota=%s", APP_VERSION, tag_name)
             if not tag_name or not versao_maior(tag_name, APP_VERSION):
                 return None
 
@@ -172,6 +174,17 @@ class UpdaterService:
             return False
 
     @staticmethod
+    def montar_comando_instalador(caminho_instalador: str, pasta_app: Optional[str], log_instalador: str) -> str:
+        """
+        Linha de comando do instalador Inno Setup (silenciosa). Montada como texto porque o Inno
+        exige /DIR="caminho com espacos" com as aspas dentro do valor.
+        """
+        comando = f'"{caminho_instalador}" /SILENT /SUPPRESSMSGBOXES /NORESTART'
+        if pasta_app:
+            comando += f' /DIR="{pasta_app.rstrip(chr(92))}"'
+        return comando + f' /LOG="{log_instalador}"'
+
+    @staticmethod
     def aplicar_atualizacao(caminho_instalador: str):
         """
         Fecha todas as conexões com o banco, aciona o instalador Inno Setup em modo silencioso
@@ -194,8 +207,12 @@ class UpdaterService:
         except Exception:
             pass
 
-        # Instala sobre a pasta atual do app (sem forcar caminho) e o instalador reabre o sistema
-        comando = [caminho_instalador, "/SILENT", "/SUPPRESSMSGBOXES", "/NORESTART"]
+        # Instala na pasta do exe em execucao: assim a atualizacao vale para a copia que o usuario
+        # realmente abre (instalada, portatil ou de desenvolvimento), sem criar uma 2a instalacao
+        pasta_app = os.path.dirname(os.path.abspath(sys.executable)) if getattr(sys, "frozen", False) else None
+        log_instalador = os.path.join(os.path.dirname(caminho_instalador), "instalador.log")
+        comando = UpdaterService.montar_comando_instalador(caminho_instalador, pasta_app, log_instalador)
+        logging.info("Iniciando instalador: %s", comando)
         flags = 0
         if os.name == "nt":
             flags = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
@@ -218,6 +235,12 @@ class CheckUpdateThread(QThread):
         self.token = token
 
     def run(self):
+        # Rodando pelo codigo-fonte, APP_VERSION (config.py) nao acompanha as releases: checar geraria
+        # um aviso eterno. Para testar o fluxo pelo codigo-fonte, defina ALS_VERIFICAR_UPDATE=1.
+        if not getattr(sys, "frozen", False) and not os.environ.get("ALS_VERIFICAR_UPDATE"):
+            logging.info("Execucao pelo codigo-fonte: checagem de atualizacao ignorada")
+            self.resultado.emit(None)
+            return
         info = UpdaterService.checar_atualizacao(self.token)
         self.resultado.emit(info)
 
