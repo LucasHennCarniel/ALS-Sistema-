@@ -47,3 +47,6 @@ data/sistema_als.db-wal
 
 # Logs de execucao e arquivos temporarios do SQLite WAL
 data/logs/
+
+# Duplicado de README.md que so difere na caixa (conflita no Windows)
+Readme.md
