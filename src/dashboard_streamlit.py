@@ -9,6 +9,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 import plotly.express as px
+import plotly.graph_objects as go
 
 # Garante que o diretório raiz está no sys.path
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -19,6 +20,11 @@ from src.controllers.manutencao_controller import ManutencaoController
 from src.controllers.veiculo_controller import VeiculoController
 from src.controllers.destino_controller import DestinoController
 from src.controllers.nota_controller import NotaController
+from src.services.dashboard.calcular_dias_corridos import calcular_dias_corridos
+from src.services.dashboard.contar_por_status import contar_por_status
+from src.services.dashboard.calcular_kpis_manutencao import calcular_kpis_manutencao
+from src.services.dashboard.agrupar_por_faixa_aging import agrupar_por_faixa_aging
+from src.services.dashboard.ranking_dias_parados import ranking_dias_parados
 
 # Configuração da página Streamlit
 st.set_page_config(
@@ -72,7 +78,7 @@ st.markdown("""
         padding: 12px;
     }
     .block-container {
-        padding-top: 1.2rem;
+        padding-top: 3rem;
         padding-bottom: 1.5rem;
     }
 </style>
@@ -95,63 +101,75 @@ def carregar_dados():
     return df_manut, veiculos, destinos, notas
 
 
-def estilizar_grafico_pizza(fig, furo=0.0):
-    """Aplica borda nítida nas fatias da pizza/rosca com legenda lateral sem cortar o círculo"""
-    fig.update_traces(
-        hole=furo,
-        textposition='inside',
-        textinfo='percent+label',
-        insidetextorientation='horizontal',
-        marker=dict(
-            line=dict(color='#1E293B', width=2)
-        ),
-        pull=0.015
-    )
-    fig.update_layout(
-        paper_bgcolor='#EAEFF5',
-        plot_bgcolor='#EAEFF5',
-        font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
-        uniformtext_minsize=10,
-        uniformtext_mode='hide',
-        margin=dict(t=25, b=25, l=15, r=15),
-        height=400,
-        legend=dict(
-            orientation="v",
-            yanchor="middle",
-            y=0.5,
-            xanchor="left",
-            x=1.02,
-            font=dict(size=11, color='#1E293B'),
-            bgcolor='rgba(255,255,255,0.4)',
-            bordercolor='#CBD5E1',
-            borderwidth=1
-        )
-    )
-    return fig
+LAYOUT_BASE = dict(
+    paper_bgcolor='#EAEFF5',
+    plot_bgcolor='#EAEFF5',
+    font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
+)
+
+# Cores com significado operacional (atenção = quente, ok = verde)
+STATUS_CORES = {
+    'AGUARDANDO': '#64748B',
+    'EM TRÂNSITO': '#0284C7',
+    'EM SERVIÇO': '#D97706',
+    'EM MANUTENÇÃO': '#F59E0B',
+    'FINALIZADO': '#4CAF50',
+}
+COR_STATUS_OUTROS = '#78909C'
+FAIXA_CORES = {
+    '0–3 dias': '#4CAF50',
+    '4–7 dias': '#F59E0B',
+    '8–15 dias': '#EA580C',
+    '16+ dias': '#DC2626',
+}
 
 
-def estilizar_grafico_colunas(fig):
-    """Aplica borda nas colunas/barras e margem superior folgada para não cortar números"""
+def estilizar_barras_horizontais(fig, altura=340):
+    """Barras horizontais com valor na ponta; a 1ª linha do DataFrame fica no topo"""
+    maior = max((max(t.x) for t in fig.data if t.x is not None and len(t.x)), default=0)
     fig.update_traces(
         marker_line_color='#1E293B',
-        marker_line_width=1.5,
+        marker_line_width=1.2,
         textposition='outside',
         cliponaxis=False
     )
     fig.update_layout(
-        paper_bgcolor='#EAEFF5',
-        plot_bgcolor='#EAEFF5',
-        font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
-        margin=dict(t=45, b=30, l=20, r=20),
-        height=400,
-        xaxis=dict(showgrid=False, linecolor='#94A3B8', tickangle=-25),
-        yaxis=dict(gridcolor='#CBD5E1', zerolinecolor='#94A3B8')
+        **LAYOUT_BASE,
+        showlegend=False,
+        height=altura,
+        margin=dict(t=15, b=15, l=10, r=50),
+        xaxis=dict(gridcolor='#CBD5E1', zerolinecolor='#94A3B8', title=None, rangemode='tozero',
+                   dtick=1 if maior <= 8 else None),
+        yaxis=dict(title=None, autorange='reversed'),
+    )
+    return fig
+
+
+def grafico_distribuicao_status(contagem):
+    """Barra única empilhada com a proporção por status (substitui a pizza)"""
+    fig = go.Figure()
+    for _, linha in contagem.iterrows():
+        fig.add_trace(go.Bar(
+            x=[linha['Quantidade']], y=[''], orientation='h', name=linha['Status'],
+            text=[linha['Quantidade']], textposition='inside',
+            marker=dict(color=STATUS_CORES.get(linha['Status'], COR_STATUS_OUTROS),
+                        line=dict(color='#1E293B', width=1.2)),
+            hovertemplate=f"{linha['Status']}: %{{x}}<extra></extra>",
+        ))
+    fig.update_layout(
+        **LAYOUT_BASE,
+        barmode='stack',
+        height=120,
+        margin=dict(t=5, b=5, l=5, r=5),
+        xaxis=dict(visible=False),
+        yaxis=dict(visible=False),
+        legend=dict(orientation='h', yanchor='top', y=0.0, xanchor='left', x=0, font=dict(size=11), traceorder='normal'),
     )
     return fig
 
 
 def renderizar_aba_frota(veiculos, notas):
-    """Renderiza os gráficos de Pizza com borda e Colunas da Frota Cadastrada"""
+    """Panorama da frota cadastrada: volume por categoria e situação (ativo/inativo)"""
     if not veiculos:
         st.warning("Nenhum veículo cadastrado no banco de dados.")
         return
@@ -199,96 +217,40 @@ def renderizar_aba_frota(veiculos, notas):
 
     st.markdown("")
 
-    # Linha de Gráficos: Esquerda = Pizza com Borda | Direita = Colunas com Borda
-    col_esq, col_dir = st.columns(2)
-
-    contagem_tipo = df_vf['tipo_veiculo'].replace('', 'OUTROS').value_counts().reset_index()
+    df_vf = df_vf.assign(tipo_veiculo=df_vf['tipo_veiculo'].replace('', 'OUTROS'))
+    contagem_tipo = df_vf['tipo_veiculo'].value_counts().reset_index()
     contagem_tipo.columns = ['Tipo de Veículo', 'Quantidade']
+
+    col_esq, col_dir = st.columns(2)
 
     with col_esq:
         with st.container(border=True):
-            c_head1, c_head2 = st.columns([2, 1])
-            c_head1.subheader(":material/pie_chart: Proporção por Categoria")
-            estilo_g1 = c_head2.selectbox(
-                "Estilo",
-                ["Pizza com Borda", "Rosca com Borda", "Colunas"],
-                key="est_frota_1",
-                label_visibility="collapsed"
+            st.subheader(":material/bar_chart: Veículos por Categoria")
+            fig1 = px.bar(
+                contagem_tipo, x='Quantidade', y='Tipo de Veículo', orientation='h',
+                text='Quantidade', color_discrete_sequence=['#607D8B']
             )
-
-            if estilo_g1 == "Colunas":
-                fig1 = px.bar(
-                    contagem_tipo,
-                    x='Tipo de Veículo',
-                    y='Quantidade',
-                    text='Quantidade',
-                    color='Tipo de Veículo',
-                    color_discrete_sequence=PALETA_ALS
-                )
-                fig1 = estilizar_grafico_colunas(fig1)
-                fig1.update_layout(showlegend=False)
-            else:
-                furo = 0.42 if estilo_g1 == "Rosca com Borda" else 0.0
-                fig1 = px.pie(
-                    contagem_tipo,
-                    names='Tipo de Veículo',
-                    values='Quantidade',
-                    color_discrete_sequence=PALETA_ALS
-                )
-                fig1 = estilizar_grafico_pizza(fig1, furo=furo)
-
-            st.plotly_chart(fig1, use_container_width=True)
+            st.plotly_chart(estilizar_barras_horizontais(fig1, altura=360), use_container_width=True)
 
     with col_dir:
         with st.container(border=True):
-            c_head3, c_head4 = st.columns([2, 1])
-            c_head3.subheader(":material/bar_chart: Volume por Categoria (Colunas)")
-            estilo_g2 = c_head4.selectbox(
-                "Estilo",
-                ["Colunas Verticais", "Barras Horizontais", "Pizza com Borda"],
-                key="est_frota_2",
-                label_visibility="collapsed"
+            st.subheader(":material/toggle_on: Situação por Categoria")
+            situacao = (
+                df_vf.groupby(['tipo_veiculo', 'STATUS_TXT']).size().reset_index(name='Quantidade')
             )
-
-            if estilo_g2 == "Pizza com Borda":
-                fig2 = px.pie(
-                    contagem_tipo,
-                    names='Tipo de Veículo',
-                    values='Quantidade',
-                    color_discrete_sequence=PALETA_ALS
-                )
-                fig2 = estilizar_grafico_pizza(fig2, furo=0.0)
-            elif estilo_g2 == "Barras Horizontais":
-                fig2 = px.bar(
-                    contagem_tipo.sort_values('Quantidade', ascending=True),
-                    x='Quantidade',
-                    y='Tipo de Veículo',
-                    orientation='h',
-                    text='Quantidade',
-                    color='Tipo de Veículo',
-                    color_discrete_sequence=PALETA_ALS
-                )
-                fig2.update_traces(marker_line_color='#1E293B', marker_line_width=1.5, textposition='outside', cliponaxis=False)
-                fig2.update_layout(
-                    paper_bgcolor='#EAEFF5',
-                    plot_bgcolor='#EAEFF5',
-                    font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
-                    showlegend=False,
-                    margin=dict(t=25, b=25, l=20, r=45),
-                    height=400
-                )
-            else:
-                fig2 = px.bar(
-                    contagem_tipo,
-                    x='Tipo de Veículo',
-                    y='Quantidade',
-                    text='Quantidade',
-                    color='Tipo de Veículo',
-                    color_discrete_sequence=PALETA_ALS
-                )
-                fig2 = estilizar_grafico_colunas(fig2)
-                fig2.update_layout(showlegend=False)
-
+            ordem = contagem_tipo['Tipo de Veículo'].tolist()
+            fig2 = px.bar(
+                situacao, x='Quantidade', y='tipo_veiculo', color='STATUS_TXT', orientation='h',
+                color_discrete_map={'ATIVO': '#4CAF50', 'INATIVO': '#94A3B8'},
+                category_orders={'tipo_veiculo': ordem}, text='Quantidade'
+            )
+            fig2.update_traces(marker_line_color='#1E293B', marker_line_width=1.2, textposition='inside')
+            fig2.update_layout(
+                **LAYOUT_BASE, barmode='stack', height=360, margin=dict(t=15, b=15, l=10, r=10),
+                xaxis=dict(gridcolor='#CBD5E1', title=None),
+                yaxis=dict(title=None, autorange='reversed'),
+                legend=dict(title=None, orientation='h', yanchor='bottom', y=1.0, xanchor='left', x=0),
+            )
             st.plotly_chart(fig2, use_container_width=True)
 
     # Tabela da Frota Filtrada
@@ -309,7 +271,7 @@ def renderizar_aba_frota(veiculos, notas):
 
 
 def renderizar_aba_manutencoes(df, veiculos):
-    """Renderiza os gráficos de Manutenção com filtros completos e seletores de estilo"""
+    """Indicadores de manutenção: status como filtro, fila por tempo parado e ranking de dias parados"""
     if df is None or df.empty:
         st.info(
             "Nenhum registro de manutenção lançado no banco até o momento. "
@@ -317,20 +279,18 @@ def renderizar_aba_manutencoes(df, veiculos):
         )
         return
 
-    for col in ['PLACA', 'VEÍCULO', 'STATUS', 'DESTINO PROGRAMADO', 'SERVIÇO A EXECUTAR', 'NRº OF', 'OBS']:
+    for col in ['PLACA', 'VEÍCULO', 'STATUS', 'DESTINO PROGRAMADO', 'SERVIÇO A EXECUTAR', 'NRº OF', 'OBS', 'DATA SAÍDA']:
         if col not in df.columns:
             df[col] = ''
         df[col] = df[col].fillna('').astype(str).str.strip()
+    df['STATUS'] = df['STATUS'].replace('', 'NÃO INFORMADO')
 
-    df['DIAS_NUM'] = pd.to_numeric(df.get('DIAS', 0), errors='coerce').fillna(0)
-    df['DATA_ENTRADA_DT'] = pd.to_datetime(df['DATA ENTRADA'], format='%d/%m/%Y', dayfirst=True, errors='coerce')
+    # Dias parados recalculados na hora (o valor gravado só é atualizado ao salvar o registro)
+    df = calcular_dias_corridos(df)
 
-    # Filtros na Barra Lateral
+    # Filtros na Barra Lateral (o status fica em destaque na área principal)
     st.sidebar.subheader(":material/filter_alt: Filtros de Manutenção")
     busca_texto = st.sidebar.text_input("Busca Rápida (Placa, Serviço, OF)", placeholder="Digite para filtrar...")
-
-    opcoes_status = sorted([s for s in df['STATUS'].unique() if s.strip()])
-    filtro_status = st.sidebar.multiselect("Status da Manutenção", options=opcoes_status, default=[])
 
     opcoes_placas = sorted([p for p in df['PLACA'].unique() if p.strip()])
     filtro_placas = st.sidebar.multiselect("Placa(s)", options=opcoes_placas, default=[])
@@ -351,147 +311,134 @@ def renderizar_aba_manutencoes(df, veiculos):
         if isinstance(intervalo, tuple) and len(intervalo) == 2:
             data_ini, data_fim = intervalo
 
-    # Aplicação dos filtros
-    df_f = df.copy()
+    # Aplicação dos filtros (exceto status)
+    df_base = df.copy()
     if busca_texto.strip():
         t = busca_texto.strip().lower()
         mascara = (
-            df_f['PLACA'].str.lower().str.contains(t, na=False) |
-            df_f['VEÍCULO'].str.lower().str.contains(t, na=False) |
-            df_f['SERVIÇO A EXECUTAR'].str.lower().str.contains(t, na=False) |
-            df_f['DESTINO PROGRAMADO'].str.lower().str.contains(t, na=False) |
-            df_f['NRº OF'].str.lower().str.contains(t, na=False)
+            df_base['PLACA'].str.lower().str.contains(t, na=False) |
+            df_base['VEÍCULO'].str.lower().str.contains(t, na=False) |
+            df_base['SERVIÇO A EXECUTAR'].str.lower().str.contains(t, na=False) |
+            df_base['DESTINO PROGRAMADO'].str.lower().str.contains(t, na=False) |
+            df_base['NRº OF'].str.lower().str.contains(t, na=False)
         )
-        df_f = df_f[mascara]
-
-    if filtro_status:
-        df_f = df_f[df_f['STATUS'].isin(filtro_status)]
+        df_base = df_base[mascara]
     if filtro_placas:
-        df_f = df_f[df_f['PLACA'].isin(filtro_placas)]
+        df_base = df_base[df_base['PLACA'].isin(filtro_placas)]
     if filtro_veiculos:
-        df_f = df_f[df_f['VEÍCULO'].isin(filtro_veiculos)]
+        df_base = df_base[df_base['VEÍCULO'].isin(filtro_veiculos)]
     if filtro_destinos:
-        df_f = df_f[df_f['DESTINO PROGRAMADO'].isin(filtro_destinos)]
+        df_base = df_base[df_base['DESTINO PROGRAMADO'].isin(filtro_destinos)]
     if usar_filtro_data and data_ini and data_fim:
-        df_f = df_f[(df_f['DATA_ENTRADA_DT'].dt.date >= data_ini) & (df_f['DATA_ENTRADA_DT'].dt.date <= data_fim)]
+        df_base = df_base[(df_base['DATA_ENTRADA_DT'].dt.date >= data_ini) & (df_base['DATA_ENTRADA_DT'].dt.date <= data_fim)]
 
-    # KPIs Corporativos
-    total_reg = len(df_f)
-    em_servico = len(df_f[df_f['STATUS'].str.upper().str.contains('MANUTENÇÃO|SERVIÇO|AGUARDANDO', na=False)])
-    finalizados = len(df_f[df_f['STATUS'].str.upper().str.contains('FINALIZADO', na=False)])
-    tempo_medio = df_f['DIAS_NUM'].mean() if total_reg > 0 else 0.0
-    placas_atendidas = df_f['PLACA'].replace('', pd.NA).dropna().nunique()
+    # Status como filtro principal: botões com a contagem de cada status
+    contagem = contar_por_status(df_base)
+    qtd_por_status = dict(zip(contagem['Status'], contagem['Quantidade']))
+    selecionados = st.pills(
+        "Filtrar por status",
+        options=contagem['Status'].tolist(),
+        selection_mode="multi",
+        format_func=lambda s: f"{s} · {qtd_por_status.get(s, 0)}",
+        key="manut_status",
+    )
+    df_f = df_base[df_base['STATUS'].isin(selecionados)] if selecionados else df_base
+
+    if not contagem.empty:
+        st.plotly_chart(grafico_distribuicao_status(contagem), use_container_width=True)
+
+    # KPIs: parados e disponibilidade olham a frota inteira; o restante respeita os filtros
+    frota_ativa = sum(1 for v in (veiculos or []) if v.get('ativo', 1))
+    kpi_frota = calcular_kpis_manutencao(df, frota_ativa)
+    kpi = calcular_kpis_manutencao(df_f, frota_ativa)
+
+    n_finalizados = int((~df_f['ABERTO']).sum())
+    disp = kpi_frota['disponibilidade']
+    mttr = kpi['tempo_medio_reparo']
+    antigo = kpi['mais_antigo_dias']
 
     k1, k2, k3, k4, k5 = st.columns(5)
-    k1.metric("Total Filtrado", f"{total_reg}")
-    k2.metric("Em Serviço", f"{em_servico}")
-    k3.metric("Finalizados", f"{finalizados}")
-    k4.metric("Tempo Médio", f"{tempo_medio:.1f} dias")
-    k5.metric("Placas Atendidas", f"{placas_atendidas}")
+    k1.metric("Veículos Parados", f"{kpi_frota['parados']}",
+              delta=f"de {frota_ativa} ativos", delta_color="off", delta_arrow="off",
+              help="Placas com registro em aberto (qualquer status diferente de FINALIZADO). Considera toda a frota.")
+    k2.metric("Disponibilidade", f"{disp:.0f}%" if disp is not None else "—",
+              delta=f"{max(frota_ativa - kpi_frota['parados'], 0)} operando", delta_color="off", delta_arrow="off",
+              help="1 − (veículos parados ÷ veículos ativos cadastrados). Considera toda a frota.")
+    k3.metric("Reparo Médio", f"{mttr:.1f} dias" if mttr is not None else "—",
+              delta=f"{n_finalizados} finalizados", delta_color="off", delta_arrow="off",
+              help="Tempo médio de reparo: média de dias dos registros finalizados no filtro atual.")
+    k4.metric("Mais Antigo", f"{antigo} dias" if antigo is not None else "—",
+              delta=(kpi['mais_antigo_placa'] if antigo is not None else "sem abertos"),
+              delta_color="off", delta_arrow="off",
+              help="Registro em aberto há mais tempo no filtro atual.")
+    k5.metric("Reincidentes", f"{kpi['reincidentes']}",
+              delta="3+ entradas em 90 dias", delta_color="off", delta_arrow="off",
+              help="Placas com 3 ou mais entradas na manutenção nos últimos 90 dias.")
 
     st.markdown("")
 
-    # Linha 1 de Gráficos: Pizza com Borda vs Colunas com Borda
     g1, g2 = st.columns(2)
 
     with g1:
         with st.container(border=True):
-            ch1, ch2 = st.columns([2, 1])
-            ch1.subheader(":material/pie_chart: Distribuição por Status")
-            tipo_g1 = ch2.selectbox(
-                "Tipo",
-                ["Pizza com Borda", "Rosca com Borda", "Colunas"],
-                key="manut_g1",
-                label_visibility="collapsed"
-            )
-            df_status = df_f['STATUS'].replace('', 'NÃO INFORMADO').value_counts().reset_index()
-            df_status.columns = ['Status', 'Quantidade']
-
-            if tipo_g1 == "Colunas":
-                fig_st = px.bar(
-                    df_status, x='Status', y='Quantidade', text='Quantidade',
-                    color='Status', color_discrete_sequence=PALETA_ALS
-                )
-                fig_st = estilizar_grafico_colunas(fig_st)
-                fig_st.update_layout(showlegend=False)
+            st.subheader(":material/hourglass_top: Em Aberto por Tempo Parado")
+            fila = agrupar_por_faixa_aging(df_f)
+            if fila['Quantidade'].sum() == 0:
+                st.success("Nenhum veículo em aberto neste filtro.")
             else:
-                furo = 0.42 if tipo_g1 == "Rosca com Borda" else 0.0
-                fig_st = px.pie(
-                    df_status, names='Status', values='Quantidade',
-                    color_discrete_sequence=PALETA_ALS
-                )
-                fig_st = estilizar_grafico_pizza(fig_st, furo=furo)
-
-            st.plotly_chart(fig_st, use_container_width=True)
+                fig_fila = go.Figure(go.Bar(
+                    x=fila['Quantidade'], y=fila['Faixa'], orientation='h',
+                    text=fila['Quantidade'], marker_color=[FAIXA_CORES[f] for f in fila['Faixa']]
+                ))
+                st.plotly_chart(estilizar_barras_horizontais(fig_fila, altura=340), use_container_width=True)
 
     with g2:
         with st.container(border=True):
-            ch3, ch4 = st.columns([2, 1])
-            ch3.subheader(":material/bar_chart: Manutenções por Veículo")
-            tipo_g2 = ch4.selectbox(
-                "Tipo",
-                ["Colunas Verticais", "Barras Horizontais", "Pizza com Borda"],
-                key="manut_g2",
-                label_visibility="collapsed"
-            )
-            df_veic = df_f['VEÍCULO'].replace('', 'OUTROS').value_counts().head(10).reset_index()
-            df_veic.columns = ['Veículo', 'Quantidade']
-
-            if tipo_g2 == "Pizza com Borda":
-                fig_v = px.pie(
-                    df_veic, names='Veículo', values='Quantidade',
-                    color_discrete_sequence=PALETA_ALS
-                )
-                fig_v = estilizar_grafico_pizza(fig_v, furo=0.0)
-            elif tipo_g2 == "Barras Horizontais":
-                fig_v = px.bar(
-                    df_veic.sort_values('Quantidade', ascending=True),
-                    x='Quantidade', y='Veículo', orientation='h', text='Quantidade',
-                    color='Veículo', color_discrete_sequence=PALETA_ALS
-                )
-                fig_v.update_traces(marker_line_color='#1E293B', marker_line_width=1.5, textposition='outside', cliponaxis=False)
-                fig_v.update_layout(
-                    paper_bgcolor='#EAEFF5', plot_bgcolor='#EAEFF5',
-                    font=dict(family="Segoe UI, sans-serif", size=12, color='#0F172A'),
-                    showlegend=False, margin=dict(t=25, b=25, l=20, r=45), height=400
-                )
+            st.subheader(":material/local_shipping: Top 10 Placas por Dias Parados")
+            ranking = ranking_dias_parados(df_f)
+            if ranking.empty:
+                st.info("Sem registros para o filtro atual.")
             else:
-                fig_v = px.bar(
-                    df_veic, x='Veículo', y='Quantidade', text='Quantidade',
-                    color='Veículo', color_discrete_sequence=PALETA_ALS
+                fig_rank = px.bar(
+                    ranking, x='Dias_Parados', y='PLACA', orientation='h', text='Dias_Parados',
+                    hover_data=['Ocorrencias'], color_discrete_sequence=['#607D8B']
                 )
-                fig_v = estilizar_grafico_colunas(fig_v)
-                fig_v.update_layout(showlegend=False)
+                st.plotly_chart(estilizar_barras_horizontais(fig_rank, altura=340), use_container_width=True)
 
-            st.plotly_chart(fig_v, use_container_width=True)
+    g3, g4 = st.columns(2)
 
-    # Linha 2: Top 10 Placas em Colunas
-    with st.container(border=True):
-        st.subheader(":material/local_shipping: Top 10 Placas por Ocorrências e Dias Parados")
-        df_top_placas = (
-            df_f[df_f['PLACA'] != '']
-            .groupby('PLACA')
-            .agg(Ocorrencias=('ID', 'count'), Dias_Parados=('DIAS_NUM', 'sum'))
-            .reset_index()
-            .sort_values(by='Ocorrencias', ascending=False)
-            .head(10)
-        )
-        fig_placas = px.bar(
-            df_top_placas,
-            x='PLACA',
-            y='Ocorrencias',
-            text='Ocorrencias',
-            hover_data=['Dias_Parados'],
-            color='Dias_Parados',
-            color_continuous_scale=['#607D8B', '#4CAF50']
-        )
-        fig_placas = estilizar_grafico_colunas(fig_placas)
-        st.plotly_chart(fig_placas, use_container_width=True)
+    with g3:
+        with st.container(border=True):
+            st.subheader(":material/directions_bus: Manutenções por Tipo de Veículo")
+            por_tipo = df_f['VEÍCULO'].replace('', 'OUTROS').value_counts().head(10).reset_index()
+            por_tipo.columns = ['Tipo', 'Quantidade']
+            fig_tipo = px.bar(
+                por_tipo, x='Quantidade', y='Tipo', orientation='h', text='Quantidade',
+                color_discrete_sequence=['#789DAB']
+            )
+            st.plotly_chart(estilizar_barras_horizontais(fig_tipo, altura=300), use_container_width=True)
 
-    # Tabela Detalhada
+    with g4:
+        with st.container(border=True):
+            st.subheader(":material/priority_high: Maiores Tempos em Aberto")
+            abertos = df_f[df_f['ABERTO']].sort_values('DIAS_NUM', ascending=False).head(8)
+            if abertos.empty:
+                st.success("Nenhum veículo em aberto neste filtro.")
+            else:
+                st.dataframe(
+                    abertos[['PLACA', 'VEÍCULO', 'STATUS', 'DIAS_NUM', 'SERVIÇO A EXECUTAR']].rename(
+                        columns={'DIAS_NUM': 'DIAS PARADO'}
+                    ),
+                    use_container_width=True, hide_index=True, height=min(300, 40 + 35 * len(abertos))
+                )
+
+    # Tabela Detalhada (dias já atualizados)
     with st.container(border=True):
         st.subheader(":material/table_chart: Registros Filtrados")
-        st.dataframe(df_f.drop(columns=['DIAS_NUM', 'DATA_ENTRADA_DT'], errors='ignore'), use_container_width=True, height=300)
+        tabela = df_f.assign(DIAS=df_f['DIAS_NUM']).drop(
+            columns=['DIAS_NUM', 'DATA_ENTRADA_DT', 'DATA_SAIDA_DT', 'ABERTO'], errors='ignore'
+        )
+        st.dataframe(tabela, use_container_width=True, height=300)
 
 
 def main():
@@ -502,6 +449,7 @@ def main():
         st.title(":material/analytics: Painel de Indicadores e Frota - ALS")
     with col_t2:
         if st.button(":material/refresh: Atualizar Dados", use_container_width=True):
+            st.cache_data.clear()
             st.rerun()
 
     if df is None or df.empty:
