@@ -1,5 +1,6 @@
 from src.models.manutencao_model import ManutencaoModel
 from src.services.manutencao.calcular_dias_dinamicos import calcular_dias_dinamicos
+from src.services.manutencao.normalizar_status import normalizar_status
 from src.services.manutencao.adicionar_registro import adicionar_registro
 from src.services.manutencao.atualizar_registro import atualizar_registro
 from src.services.manutencao.excluir_registro import excluir_registro
@@ -38,6 +39,8 @@ class ManutencaoController:
                 'nr_of': 'NR° OF',
                 'obs': 'OBS'
             })
+            # Registros antigos com status que não existem mais aparecem com o equivalente atual
+            df['STATUS'] = df['STATUS'].map(normalizar_status)
             # Dias sempre atualizados (o valor gravado no banco só muda quando o registro é salvo)
             df['TOTAL DE DIAS EM MANUTENÇÃO'] = calcular_dias_dinamicos(df)['DIAS_CALCULADOS']
             # Cria colunas alias para facilitar acesso na View Qt e Dashboard

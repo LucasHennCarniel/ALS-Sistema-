@@ -11,6 +11,8 @@ from qfluentwidgets import (
     TextEdit, ComboBox, EditableComboBox,
     SwitchButton, RadioButton, IconWidget, FluentIcon as FIF, isDarkTheme
 )
+from src.services.manutencao.status import STATUS_VALIDOS, STATUS_EM_MANUTENCAO
+from src.services.manutencao.normalizar_status import normalizar_status
 
 
 def _configurar_mascara_data(campo: LineEdit):
@@ -189,15 +191,9 @@ class FormRegistroDialog(MessageBoxBase):
         self.combo_status = ComboBox(self.widget)
         self.combo_status.setMaxVisibleItems(10)
         self.combo_status.setMinimumWidth(220)
-        self.combo_status.addItems([
-            "EM MANUTENÇÃO",
-            "EM SERVIÇO",
-            "FINALIZADO",
-            "AGUARDANDO PEÇAS",
-            "PREVENTIVA",
-            "CORRETIVA",
-            "SOCORRO"
-        ])
+        self.combo_status.addItems(STATUS_VALIDOS)
+        # Novo registro normalmente é um veículo que está entrando em manutenção
+        self.combo_status.setCurrentText(STATUS_EM_MANUTENCAO)
         form_layout.addWidget(self.combo_status, 2, 3)
         
         # 4. Data Entrada e Saída
@@ -324,7 +320,8 @@ class FormRegistroDialog(MessageBoxBase):
             self.combo_destino.setCurrentIndex(idx_d)
         self.combo_destino.setText(dest)
             
-        st = str(r.get('STATUS') or r.get('status') or 'EM MANUTENÇÃO').strip().upper()
+        # Status antigos (ex.: EM SERVIÇO, SOCORRO) aparecem como o equivalente atual
+        st = normalizar_status(r.get('STATUS') or r.get('status')) or STATUS_EM_MANUTENCAO
         idx_st = self.combo_status.findText(st)
         if idx_st >= 0:
             self.combo_status.setCurrentIndex(idx_st)

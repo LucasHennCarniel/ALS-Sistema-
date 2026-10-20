@@ -20,6 +20,9 @@ from src.controllers.manutencao_controller import ManutencaoController
 from src.controllers.veiculo_controller import VeiculoController
 from src.controllers.destino_controller import DestinoController
 from src.controllers.nota_controller import NotaController
+from src.services.manutencao.status import (
+    STATUS_AGENDADO, STATUS_EM_MANUTENCAO, STATUS_FINALIZADO, STATUS_SINISTRO
+)
 from src.services.dashboard.calcular_dias_corridos import calcular_dias_corridos
 from src.services.dashboard.contar_por_status import contar_por_status
 from src.services.dashboard.calcular_kpis_manutencao import calcular_kpis_manutencao
@@ -109,11 +112,10 @@ LAYOUT_BASE = dict(
 
 # Cores com significado operacional (atenção = quente, ok = verde)
 STATUS_CORES = {
-    'AGUARDANDO': '#64748B',
-    'EM TRÂNSITO': '#0284C7',
-    'EM SERVIÇO': '#D97706',
-    'EM MANUTENÇÃO': '#F59E0B',
-    'FINALIZADO': '#4CAF50',
+    STATUS_AGENDADO: '#0284C7',
+    STATUS_EM_MANUTENCAO: '#F59E0B',
+    STATUS_FINALIZADO: '#4CAF50',
+    STATUS_SINISTRO: '#DC2626',
 }
 COR_STATUS_OUTROS = '#78909C'
 FAIXA_CORES = {
@@ -352,7 +354,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     kpi_frota = calcular_kpis_manutencao(df, frota_ativa)
     kpi = calcular_kpis_manutencao(df_f, frota_ativa)
 
-    n_finalizados = int((~df_f['ABERTO']).sum())
+    n_finalizados = int(df_f['FINALIZADO'].sum())
     disp = kpi_frota['disponibilidade']
     mttr = kpi['tempo_medio_reparo']
     antigo = kpi['mais_antigo_dias']
@@ -360,7 +362,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     k1, k2, k3, k4, k5 = st.columns(5)
     k1.metric("Veículos Parados", f"{kpi_frota['parados']}",
               delta=f"de {frota_ativa} ativos", delta_color="off", delta_arrow="off",
-              help="Placas com registro em aberto (qualquer status diferente de FINALIZADO). Considera toda a frota.")
+              help="Placas com registro EM MANUTENÇÃO ou SINISTRO. Agendados e finalizados não contam. Considera toda a frota.")
     k2.metric("Disponibilidade", f"{disp:.0f}%" if disp is not None else "—",
               delta=f"{max(frota_ativa - kpi_frota['parados'], 0)} operando", delta_color="off", delta_arrow="off",
               help="1 − (veículos parados ÷ veículos ativos cadastrados). Considera toda a frota.")
@@ -436,7 +438,7 @@ def renderizar_aba_manutencoes(df, veiculos):
     with st.container(border=True):
         st.subheader(":material/table_chart: Registros Filtrados")
         tabela = df_f.assign(DIAS=df_f['DIAS_NUM']).drop(
-            columns=['DIAS_NUM', 'DATA_ENTRADA_DT', 'DATA_SAIDA_DT', 'ABERTO'], errors='ignore'
+            columns=['DIAS_NUM', 'DATA_ENTRADA_DT', 'DATA_SAIDA_DT', 'ABERTO', 'FINALIZADO'], errors='ignore'
         )
         st.dataframe(tabela, use_container_width=True, height=300)
 

@@ -1,5 +1,6 @@
 """Regra: autocálculo de status e dias antes de salvar"""
 from src.services.manutencao.calcular_dias_manutencao import calcular_dias_manutencao
+from src.services.manutencao.status import STATUS_AGENDADO, STATUS_EM_MANUTENCAO, STATUS_FINALIZADO
 
 
 def recalcular_campos(dados):
@@ -10,11 +11,11 @@ def recalcular_campos(dados):
 
     if not status:
         if data_saida:
-            status = 'FINALIZADO'
+            status = STATUS_FINALIZADO
         elif data_entrada:
-            status = 'EM MANUTENÇÃO'
+            status = STATUS_EM_MANUTENCAO
         else:
-            status = 'AGUARDANDO'
+            status = STATUS_AGENDADO
     dados['status'] = status
 
     if data_entrada:

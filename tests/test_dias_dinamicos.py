@@ -22,7 +22,7 @@ def test_aberto_conta_ate_hoje_ignorando_valor_gravado():
 
 
 def test_dia_seguinte_soma_mais_um():
-    df = pd.DataFrame([_linha('EM SERVIÇO', '13/10/2026')])
+    df = pd.DataFrame([_linha('SINISTRO', '13/10/2026')])
     assert calcular_dias_dinamicos(df, hoje='2026-10-20')['DIAS_CALCULADOS'].tolist() == [7]
 
 
@@ -36,13 +36,13 @@ def test_finalizado_com_saida_fixa_o_periodo():
 def test_finalizado_sem_saida_ou_sem_entrada_mantem_gravado():
     df = pd.DataFrame([
         _linha('FINALIZADO', '01/09/2026', '', gravado=7),
-        _linha('AGUARDANDO', '', '', gravado=3),
+        _linha('AGENDADO', '', '', gravado=3),
     ])
     assert calcular_dias_dinamicos(df, hoje=HOJE)['DIAS_CALCULADOS'].tolist() == [7, 3]
 
 
 def test_entrada_no_futuro_nao_gera_dias_negativos():
-    df = pd.DataFrame([_linha('EM SERVIÇO', '25/10/2026')])
+    df = pd.DataFrame([_linha('SINISTRO', '25/10/2026')])
     assert calcular_dias_dinamicos(df, hoje=HOJE)['DIAS_CALCULADOS'].tolist() == [0]
 
 

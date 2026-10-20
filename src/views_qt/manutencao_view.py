@@ -18,6 +18,7 @@ from qfluentwidgets import (
 )
 
 from src.views_qt.dialogs import FormRegistroDialog, ImportarOpcoesDialog
+from src.services.manutencao.status import STATUS_VALIDOS
 from src.views_qt.theme_styles import ContrastCard, CorporateStatCard, aplicar_selecao_visivel
 
 
@@ -114,13 +115,14 @@ class ManutencaoView(QWidget):
         stats_layout.setSpacing(12)
         
         self.card_total = CorporateStatCard("Total de Registros", "0", FIF.DOCUMENT, "#607D8B", self)
-        self.card_servico = CorporateStatCard("Em Serviço", "0", FIF.SETTING, "#D97706", self)
+        self.card_servico = CorporateStatCard("Em Manutenção", "0", FIF.SETTING, "#D97706", self)
+        self.card_sinistro = CorporateStatCard("Sinistros", "0", FIF.INFO, "#DC2626", self)
         self.card_finalizados = CorporateStatCard("Finalizados", "0", FIF.ACCEPT, "#4CAF50", self)
         self.card_tempo = CorporateStatCard("Tempo Médio", "0 d", FIF.HISTORY, "#0284C7", self)
         self.card_placas = CorporateStatCard("Placas Atendidas", "0", FIF.CAR, "#475569", self)
         
         self.cards = [
-            self.card_total, self.card_servico, self.card_finalizados,
+            self.card_total, self.card_servico, self.card_sinistro, self.card_finalizados,
             self.card_tempo, self.card_placas
         ]
         for c in self.cards:
@@ -177,7 +179,7 @@ class ManutencaoView(QWidget):
         filters_layout.addWidget(BodyLabel("Status:", self))
         self.combo_filtro_status = ComboBox(self)
         self.combo_filtro_status.addItem("Todos")
-        self.combo_filtro_status.addItems(["EM MANUTENÇÃO", "EM SERVIÇO", "FINALIZADO", "AGUARDANDO PEÇAS"])
+        self.combo_filtro_status.addItems(STATUS_VALIDOS)
         self.combo_filtro_status.currentTextChanged.connect(self._aplicar_filtro_busca)
         self.combo_filtro_status.setFixedWidth(180)
         filters_layout.addWidget(self.combo_filtro_status)
@@ -265,19 +267,22 @@ class ManutencaoView(QWidget):
                 
                 if col_name == 'STATUS':
                     status_str = str(val).upper()
-                    if 'FINALIZADO' in status_str:
+                    if status_str == 'FINALIZADO':
                         item.setForeground(QColor('#2E7D32'))
-                    elif 'MANUTENÇÃO' in status_str or 'SERVIÇO' in status_str:
+                    elif status_str == 'EM MANUTENÇÃO':
                         item.setForeground(QColor('#D84315'))
-                    elif 'AGUARDANDO' in status_str:
+                    elif status_str == 'SINISTRO':
                         item.setForeground(QColor('#C62828'))
+                    elif status_str == 'AGENDADO':
+                        item.setForeground(QColor('#0277BD'))
                         
                 self.table.setItem(row_idx, col_idx, item)
 
     def _atualizar_estatisticas(self):
         stats = self.ctrl.obter_estatisticas()
         self.card_total.set_valor(stats.get('total', 0))
-        self.card_servico.set_valor(stats.get('em_servico', 0))
+        self.card_servico.set_valor(stats.get('em_manutencao', 0))
+        self.card_sinistro.set_valor(stats.get('sinistros', 0))
         self.card_finalizados.set_valor(stats.get('finalizados', 0))
         self.card_tempo.set_valor(f"{stats.get('tempo_medio', 0.0)} d")
         self.card_placas.set_valor(stats.get('placas_unicas', 0))

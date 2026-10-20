@@ -13,7 +13,7 @@ def calcular_kpis_manutencao(df, frota_ativa, hoje=None):
     """
     hoje = pd.Timestamp(hoje or datetime.now()).normalize()
     abertos = df[df['ABERTO']]
-    finalizados = df[~df['ABERTO']]
+    finalizados = df[df['FINALIZADO']]
 
     parados = int(abertos['PLACA'].replace('', pd.NA).dropna().nunique())
     disponibilidade = None

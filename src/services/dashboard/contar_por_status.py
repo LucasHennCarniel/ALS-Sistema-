@@ -1,7 +1,8 @@
 """Regra: contagem de registros por status, na ordem do fluxo operacional"""
 import pandas as pd
+from src.services.manutencao.status import STATUS_VALIDOS
 
-ORDEM_STATUS = ['AGUARDANDO', 'EM TRÂNSITO', 'EM SERVIÇO', 'EM MANUTENÇÃO', 'FINALIZADO']
+ORDEM_STATUS = STATUS_VALIDOS
 
 
 def contar_por_status(df):

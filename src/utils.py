@@ -4,6 +4,7 @@ Funções auxiliares para cálculos e processamento
 import pandas as pd
 from datetime import datetime, date
 import os
+from src.services.manutencao.status import STATUS_EM_MANUTENCAO, STATUS_FINALIZADO
 
 
 def calcular_dias_manutencao(data_entrada, data_saida):
@@ -45,9 +46,9 @@ def calcular_status(data_entrada, data_saida, status_atual=''):
     Calcula status dinâmico baseado nas datas
     """
     if pd.notna(data_entrada) and data_entrada != '' and (pd.isna(data_saida) or data_saida == ''):
-        return 'EM SERVIÇO'
+        return STATUS_EM_MANUTENCAO
     elif pd.notna(data_entrada) and data_entrada != '' and pd.notna(data_saida) and data_saida != '':
-        return 'FINALIZADO'
+        return STATUS_FINALIZADO
     else:
         return status_atual if status_atual else ''
 
@@ -153,7 +154,8 @@ def gerar_relatorio_pdf(dados, estatisticas, arquivo_saida):
         stats_data = [
             ['ESTATÍSTICAS GERAIS'],
             ['Total de Registros:', str(estatisticas.get('total', 0))],
-            ['Em Serviço:', str(estatisticas.get('em_servico', 0))],
+            ['Em Manutenção:', str(estatisticas.get('em_manutencao', 0))],
+            ['Sinistros:', str(estatisticas.get('sinistros', 0))],
             ['Finalizados:', str(estatisticas.get('finalizados', 0))],
             ['Tempo Médio (dias):', f"{estatisticas.get('tempo_medio', 0):.1f}"],
             ['Placas Únicas:', str(estatisticas.get('placas_unicas', 0))]
@@ -241,12 +243,13 @@ def gerar_relatorio_word(dados, estatisticas, arquivo_saida):
         
         # Estatísticas
         doc.add_heading('ESTATÍSTICAS GERAIS', 2)
-        table_stats = doc.add_table(rows=6, cols=2)
+        table_stats = doc.add_table(rows=7, cols=2)
         table_stats.style = 'Light Grid Accent 1'
         
         stats_data = [
             ['Total de Registros:', str(estatisticas.get('total', 0))],
-            ['Em Serviço:', str(estatisticas.get('em_servico', 0))],
+            ['Em Manutenção:', str(estatisticas.get('em_manutencao', 0))],
+            ['Sinistros:', str(estatisticas.get('sinistros', 0))],
             ['Finalizados:', str(estatisticas.get('finalizados', 0))],
             ['Tempo Médio (dias):', f"{estatisticas.get('tempo_medio', 0):.1f}"],
             ['Placas Únicas:', str(estatisticas.get('placas_unicas', 0))],

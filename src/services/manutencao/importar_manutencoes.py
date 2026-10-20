@@ -1,6 +1,7 @@
 """Regra: importação de planilha de manutenções (modos novo / atualizar / substituir)"""
 from datetime import datetime
 from src.services.manutencao.adicionar_registro import adicionar_registro
+from src.services.manutencao.normalizar_status import normalizar_status
 from src.services.manutencao.atualizar_registro import atualizar_registro
 
 
@@ -60,7 +61,7 @@ def importar_manutencoes(model, df, modo="atualizar"):
         veiculo_txt = str(row.get('VEÍCULO', '')).strip().upper() if pd.notna(row.get('VEÍCULO')) else ''
         destino_txt = str(row.get('DESTINO PROGRAMADO', '')).strip().upper() if pd.notna(row.get('DESTINO PROGRAMADO')) else ''
         servico_txt = str(row.get('SERVIÇO A EXECUTAR', '')).strip() if pd.notna(row.get('SERVIÇO A EXECUTAR')) else ''
-        status_txt = str(row.get('STATUS', '')).strip().upper() if pd.notna(row.get('STATUS')) else ''
+        status_txt = normalizar_status(row.get('STATUS')) if pd.notna(row.get('STATUS')) else ''
         of_val = row.get('NR° OF') if 'NR° OF' in df.columns else row.get('NRº OF', '')
         of_txt = str(of_val).strip() if pd.notna(of_val) else ''
         obs_txt = str(row.get('OBS', '')).strip() if pd.notna(row.get('OBS')) else ''
