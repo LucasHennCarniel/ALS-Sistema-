@@ -2,6 +2,7 @@
 Janela de Inicializacao Unificada em Fluent Design
 Uma unica janela conduz: checagem de atualizacao -> aviso da nova versao -> download -> instalacao.
 """
+import logging
 import os
 import sys
 from PySide6.QtCore import Qt, QTimer, Signal
@@ -14,13 +15,18 @@ from qfluentwidgets import (
 
 from src.config import APP_VERSION, BASE_PATH
 from src.services.updater_service import (
-    CheckUpdateThread, DownloadUpdateThread, UpdaterService, UpdateInfo
+    CheckUpdateThread, DownloadUpdateThread, UpdaterService, UpdateInfo,
+    pasta_atualizacao, NOME_INSTALADOR
 )
 
 # Etapas (indices do QStackedWidget) e altura da janela em cada uma
 ETAPA_CHECANDO, ETAPA_AVISO, ETAPA_DOWNLOAD = 0, 1, 2
 ALTURAS = {ETAPA_CHECANDO: 320, ETAPA_AVISO: 540, ETAPA_DOWNLOAD: 380}
 TIMEOUT_CHECAGEM_MS = 6000
+INTERVALO_MONITOR_MS = 500
+TIMEOUT_INICIO_INSTALADOR_MS = 180_000   # antivírus pode levar um tempo escaneando o instalador de ~320 MB
+INTERVALO_ESPERA_MS = 1000
+TIMEOUT_ESPERA_INSTALACAO_MS = 15 * 60 * 1000
 COR_TEXTO_SUAVE = "#94A3B8"
 
 
@@ -43,11 +49,17 @@ class ModernSplashScreen(QWidget):
         self.token = token
         self.update_info = None
         self._emitido = False
+        self._acao_tentar = None
+        self._processo = None
         self._init_ui()
         if update_info is not None:
             self._mostrar_aviso(update_info)
         else:
-            self._iniciar_checagem()
+            pendente = UpdaterService.instalacao_em_andamento(versao_atual=APP_VERSION)
+            if pendente:
+                self._aguardar_instalacao(pendente)
+            else:
+                self._iniciar_checagem()
 
     # ------------------------------------------------------------------ UI
     def _init_ui(self):
@@ -179,7 +191,7 @@ class ModernSplashScreen(QWidget):
         self.btn_erro_sair.clicked.connect(self._on_depois)
         self.btn_erro_tentar = PrimaryPushButton("Tentar novamente", self.linha_erro)
         self.btn_erro_tentar.setStyleSheet("background-color: #4CAF50; border-color: #4CAF50;")
-        self.btn_erro_tentar.clicked.connect(self._iniciar_download)
+        self.btn_erro_tentar.clicked.connect(self._tentar_novamente)
         erro_lay.addWidget(self.btn_erro_sair)
         erro_lay.addWidget(self.btn_erro_tentar)
         self.linha_erro.hide()
@@ -226,7 +238,7 @@ class ModernSplashScreen(QWidget):
         self.update_info = info
         if info.obrigatoria:
             self.lbl_aviso_titulo.setText("Atualização Obrigatória")
-            self.lbl_aviso_titulo.setStyleSheet("color: #DC2626; font-weight: bold;")
+            self.lbl_aviso_titulo.setStyleSheet("color: #F87171; font-weight: bold;")
             self.btn_depois.setText("Fechar Sistema")
         else:
             self.lbl_aviso_titulo.setText("Nova Versão Disponível")
@@ -248,20 +260,37 @@ class ModernSplashScreen(QWidget):
         self._finalizar(self.update_info)
 
     # --------------------------------------------------- Etapa 3: download
-    def _iniciar_download(self):
-        self.lbl_status.setText("Baixando nova versão...")
+    def _limpar_erro(self, texto):
+        self.lbl_status.setText(texto)
         self.lbl_status.setStyleSheet(f"color: {COR_TEXTO_SUAVE}; font-size: 12px;")
         self.linha_erro.hide()
+
+    def _mostrar_erro(self, mensagem):
+        """Mostra o motivo real da falha e as opções (tentar de novo / continuar). Nunca deixa a janela muda."""
+        logging.error("Atualizacao: %s", mensagem)
+        self.lbl_status.setText(mensagem)
+        self.lbl_status.setStyleSheet("color: #F87171; font-size: 12px;")
+        self.btn_erro_sair.setText("Fechar Sistema" if self.update_info.obrigatoria else "Continuar sem atualizar")
+        self.linha_erro.show()
+        self._ir_para(ETAPA_DOWNLOAD)
+
+    def _tentar_novamente(self):
+        if self._acao_tentar is not None:
+            self._acao_tentar()
+
+    def _iniciar_download(self):
+        self._acao_tentar = self._iniciar_download
+        self._limpar_erro("Baixando nova versão...")
         self.barra_download.setValue(0)
         self._ir_para(ETAPA_DOWNLOAD)
 
-        temp_dir = os.path.join(os.environ.get("TEMP", os.path.expanduser("~")), "ALS_Update")
-        destino = os.path.join(temp_dir, "Instalador_SistemaALS_Setup.exe")
+        destino = os.path.join(pasta_atualizacao(), NOME_INSTALADOR)
         self.thread_download = DownloadUpdateThread(
             download_url=self.update_info.download_url,
             destino_path=destino,
             token=self.token,
-            parent=self
+            parent=self,
+            tamanho_esperado=self.update_info.tamanho_bytes,
         )
         self.thread_download.progresso.connect(self._on_progresso)
         self.thread_download.sucesso.connect(self._on_download_ok)
@@ -273,16 +302,95 @@ class ModernSplashScreen(QWidget):
         self.lbl_status.setText(f"Baixando nova versão: {pct}% concluído...")
 
     def _on_download_ok(self, caminho_instalador: str):
+        self._caminho_instalador = caminho_instalador
         self.barra_download.setValue(100)
-        self.lbl_status.setText("Download concluído! Instalando e reiniciando o sistema...")
-        self.lbl_download_info.setText("Não feche esta janela. O sistema abrirá sozinho ao terminar.")
-        QTimer.singleShot(700, lambda: UpdaterService.aplicar_atualizacao(caminho_instalador))
+        self._limpar_erro("Download concluído! Iniciando o instalador...")
+        self.lbl_download_info.setText("Não feche esta janela nem abra o sistema de novo. Ele reabrirá sozinho.")
+        QTimer.singleShot(500, self._iniciar_instalador)
 
     def _on_download_falha(self, mensagem: str):
-        self.lbl_status.setText(mensagem)
-        self.lbl_status.setStyleSheet("color: #DC2626; font-size: 12px;")
-        self.btn_erro_sair.setText("Fechar Sistema" if self.update_info.obrigatoria else "Continuar sem atualizar")
-        self.linha_erro.show()
+        self._acao_tentar = self._iniciar_download
+        self._mostrar_erro(mensagem)
+
+    # ----------------------------------------- Etapa 4: instalador em execucao
+    def _iniciar_instalador(self):
+        """Dispara o instalador e só encerra o app depois de confirmar que ele realmente iniciou"""
+        self._acao_tentar = self._iniciar_instalador
+        self._limpar_erro("Iniciando o instalador...")
+        try:
+            self._processo, self._log_instalador = UpdaterService.iniciar_instalador(
+                self._caminho_instalador, self.update_info.versao
+            )
+        except Exception as e:
+            logging.exception("Falha ao iniciar o instalador")
+            self._mostrar_erro(
+                f"Não foi possível iniciar o instalador: {e}. "
+                f"Você pode executá-lo manualmente: {self._caminho_instalador}"
+            )
+            return
+        self._tempo_instalador = 0
+        self.timer_instalador = QTimer(self)
+        self.timer_instalador.setInterval(INTERVALO_MONITOR_MS)
+        self.timer_instalador.timeout.connect(self._monitorar_instalador)
+        self.timer_instalador.start()
+
+    def _monitorar_instalador(self):
+        self._tempo_instalador += INTERVALO_MONITOR_MS
+        codigo = self._processo.poll()
+        log_iniciado = os.path.exists(self._log_instalador) and os.path.getsize(self._log_instalador) > 0
+
+        if codigo not in (None, 0):
+            self.timer_instalador.stop()
+            UpdaterService.limpar_marcador_instalacao()
+            self._mostrar_erro(
+                f"O instalador terminou com erro (código {codigo}). Detalhes em: {self._log_instalador}"
+            )
+        elif codigo == 0 or log_iniciado:
+            # O instalador já está trabalhando: pode encerrar o app para ele trocar os arquivos
+            self.timer_instalador.stop()
+            self.lbl_status.setText("Instalando a atualização... o sistema reabrirá sozinho em instantes.")
+            QTimer.singleShot(1500, UpdaterService.finalizar_para_instalacao)
+        elif self._tempo_instalador >= TIMEOUT_INICIO_INSTALADOR_MS:
+            self.timer_instalador.stop()
+            UpdaterService.limpar_marcador_instalacao()
+            self._mostrar_erro(
+                "O instalador não iniciou em 3 minutos (o antivírus pode estar verificando o arquivo). "
+                f"Você pode executá-lo manualmente: {self._caminho_instalador}"
+            )
+        else:
+            segundos = self._tempo_instalador // 1000
+            self.lbl_status.setText(f"Aguardando o instalador iniciar... ({segundos}s)")
+
+    # ------------------------------ Instalacao iniciada antes (app reaberto)
+    def _aguardar_instalacao(self, dados):
+        """Há um instalador rodando: não abre o app no meio da troca de arquivos, espera terminar"""
+        logging.info("Instalacao em andamento (pid=%s, versao=%s): aguardando", dados.get("pid"), dados.get("versao"))
+        self._dados_instalacao = dados
+        self._espera_ms = 0
+        self.lbl_status.setText(
+            f"A atualização para {dados.get('versao', 'nova versão')} está sendo instalada. "
+            "Aguarde: o sistema abrirá sozinho."
+        )
+        self.timer_espera = QTimer(self)
+        self.timer_espera.setInterval(INTERVALO_ESPERA_MS)
+        self.timer_espera.timeout.connect(self._verificar_instalacao)
+        self.timer_espera.start()
+
+    def _verificar_instalacao(self):
+        self._espera_ms += INTERVALO_ESPERA_MS
+        if (UpdaterService.instalacao_em_andamento(versao_atual=APP_VERSION) is not None
+                and self._espera_ms < TIMEOUT_ESPERA_INSTALACAO_MS):
+            return
+        self.timer_espera.stop()
+        concluiu = UpdaterService.instalacao_foi_concluida(self._dados_instalacao.get("log", ""))
+        UpdaterService.limpar_marcador_instalacao()
+        if concluiu:
+            # O instalador já abriu a versão nova: esta cópia antiga só precisa sair
+            self.lbl_status.setText("Atualização concluída! Reabrindo o sistema...")
+            QTimer.singleShot(1500, UpdaterService.finalizar_para_instalacao)
+        else:
+            logging.warning("Instalador terminou sem confirmar sucesso; abrindo normalmente")
+            self._iniciar_checagem()
 
     # ------------------------------------------------------------- Saida
     def _finalizar(self, info):

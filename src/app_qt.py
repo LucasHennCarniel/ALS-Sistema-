@@ -13,7 +13,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 from PySide6.QtCore import Qt, QLockFile, QTimer
 
 from qfluentwidgets import setTheme, Theme
@@ -40,6 +40,17 @@ def _configurar_log():
     sys.excepthook = _excecao
 
 
+def _pid_da_instancia_aberta(lock):
+    """PID de quem segura a trava de instância única (None se não for possível saber)"""
+    try:
+        for item in lock.getLockInfo():
+            if isinstance(item, int) and not isinstance(item, bool):
+                return item
+    except Exception:
+        pass
+    return None
+
+
 def main():
     _configurar_log()
     logging.info("Iniciando Sistema ALS v%s (frozen=%s)", APP_VERSION, getattr(sys, "frozen", False))
@@ -56,6 +67,14 @@ def main():
     lock = QLockFile(os.path.join(tempfile.gettempdir(), "sistema_als_instancia.lock"))
     lock.setStaleLockTime(0)
     if not lock.tryLock(100):
+        logging.warning("Outra instancia ja esta em execucao (pid=%s)", _pid_da_instancia_aberta(lock))
+        QMessageBox.information(
+            None,
+            "Sistema ALS",
+            "O Sistema ALS já está aberto, ou ainda está iniciando ou finalizando.\n\n"
+            "Aguarde alguns segundos. Se a janela não aparecer, encerre o processo "
+            "SistemaManutencaoALS.exe no Gerenciador de Tarefas e abra o sistema de novo.",
+        )
         return
     
     logging.info("QApplication criada")
@@ -103,8 +122,15 @@ def main():
     splash.concluido.connect(on_splash_concluido)
     QTimer.singleShot(50, construir_janela)
     codigo = app.exec()
+    logging.info("Aplicacao encerrada (codigo=%s)", codigo)
+    # Garante que nenhum processo filho/thread (QtWebEngine, Streamlit) segure o lock ou o .exe depois de fechar
+    try:
+        estado["window"].dashboard_view.encerrar_servidor()
+    except Exception:
+        pass
     lock.unlock()
-    sys.exit(codigo)
+    logging.shutdown()
+    os._exit(codigo)
 
 
 if __name__ == "__main__":
