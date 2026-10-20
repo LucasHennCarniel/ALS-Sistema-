@@ -15,6 +15,7 @@ from qfluentwidgets import (
 )
 
 from src.views_qt.dialogs import FormNotaDialog
+from src.views_qt.theme_styles import aplicar_selecao_visivel
 
 
 class NotasView(QWidget):
@@ -88,6 +89,7 @@ class NotasView(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        aplicar_selecao_visivel(self.table)
         self.table.itemDoubleClicked.connect(self._on_row_double_click)
         
         header = self.table.horizontalHeader()

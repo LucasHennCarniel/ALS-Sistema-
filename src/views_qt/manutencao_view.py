@@ -3,9 +3,9 @@ Interface Principal de Registros de Manutenção com QFluentWidgets
 Visual Corporativo com Ícones Vetoriais Fluent e Endpoints Completos
 """
 import os
-from datetime import datetime
+from datetime import datetime, date
 import pandas as pd
-from PySide6.QtCore import Qt, QDate
+from PySide6.QtCore import Qt, QDate, QTimer
 from PySide6.QtGui import QColor, QFont
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QHeaderView, 
@@ -18,7 +18,7 @@ from qfluentwidgets import (
 )
 
 from src.views_qt.dialogs import FormRegistroDialog, ImportarOpcoesDialog
-from src.views_qt.theme_styles import ContrastCard, CorporateStatCard
+from src.views_qt.theme_styles import ContrastCard, CorporateStatCard, aplicar_selecao_visivel
 
 
 def ler_planilha_inteligente(caminho):
@@ -72,7 +72,7 @@ class ManutencaoView(QWidget):
     
     LARGURAS_COLUNAS = [
         55, 95, 90, 85, 110,
-        165, 220, 130,
+        165, 220, 150,
         115, 105, 65, 90, 180
     ]
     
@@ -85,6 +85,13 @@ class ManutencaoView(QWidget):
         
         self._init_ui()
         self.carregar_dados()
+
+        # Os dias parados são calculados na hora; se o app ficar aberto na virada do dia, atualiza sozinho
+        self._data_carga = date.today()
+        self.timer_dias = QTimer(self)
+        self.timer_dias.setInterval(60_000)
+        self.timer_dias.timeout.connect(self._atualizar_se_virou_o_dia)
+        self.timer_dias.start()
 
     def _init_ui(self):
         layout = QVBoxLayout(self)
@@ -194,6 +201,7 @@ class ManutencaoView(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        aplicar_selecao_visivel(self.table)
         self.table.itemDoubleClicked.connect(self._on_row_double_click)
         
         header = self.table.horizontalHeader()
@@ -218,6 +226,17 @@ class ManutencaoView(QWidget):
             self._atualizar_estatisticas()
         except Exception as e:
             InfoBar.error("Erro", f"Falha ao carregar registros: {e}", parent=self.window())
+
+    def _atualizar_se_virou_o_dia(self):
+        if date.today() == self._data_carga:
+            return
+        self._data_carga = date.today()
+        try:
+            self.df_atual = self.ctrl.obter_dataframe_exibicao()
+            self._aplicar_filtro_busca()
+            self._atualizar_estatisticas()
+        except Exception:
+            pass
 
     def _render_tabela(self, df):
         if df is None or df.empty:

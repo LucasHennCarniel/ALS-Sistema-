@@ -4,10 +4,12 @@ Com Ícones Vetoriais Fluent (Sem emojis informais)
 """
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QFont
-from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout
+from PySide6.QtWidgets import QFrame, QVBoxLayout, QHBoxLayout, QStyle
 from qfluentwidgets import (
-    isDarkTheme, IconWidget, CaptionLabel, TitleLabel, FluentIcon as FIF
+    isDarkTheme, IconWidget, CaptionLabel, TitleLabel, FluentIcon as FIF, TableItemDelegate
 )
+
+COR_ACENTO_ALS = "#4CAF50"
 
 
 class ContrastCard(QFrame):
@@ -74,6 +76,39 @@ class CorporateStatCard(ContrastCard):
         self.label_valor.setText(str(valor))
 
 
+class SelecaoItemDelegate(TableItemDelegate):
+    """
+    Delegate das tabelas com seleção bem visível:
+    linha selecionada em verde ALS (negrito + barra lateral), célula clicada mais forte,
+    hover perceptível e sem o retângulo pontilhado de foco.
+    """
+
+    def initStyleOption(self, option, index):
+        super().initStyleOption(option, index)
+        option.state &= ~QStyle.State_HasFocus
+        if index.row() in self.selectedRows:
+            option.font.setBold(True)
+
+    def _drawBackground(self, painter, option, index):
+        if index.row() in self.selectedRows:
+            atual = self.parent().currentIndex()
+            celula_atual = atual.isValid() and atual.row() == index.row() and atual.column() == index.column()
+            if isDarkTheme():
+                alpha = 125 if celula_atual else 70
+            else:
+                alpha = 190 if celula_atual else 120
+            painter.setBrush(QColor(76, 175, 80, alpha))
+        elif self.hoverRow == index.row():
+            painter.setBrush(QColor(255, 255, 255, 26) if isDarkTheme() else QColor(0, 0, 0, 20))
+        super()._drawBackground(painter, option, index)
+
+
+def aplicar_selecao_visivel(tabela):
+    """Instala o delegate de seleção destacada em uma TableWidget do Fluent"""
+    tabela.setItemDelegate(SelecaoItemDelegate(tabela))
+    tabela.setCheckedColor(COR_ACENTO_ALS, COR_ACENTO_ALS)
+
+
 QSS_TABELA_CINZA = """
 QTableWidget, TableWidget {
     background-color: #F1F5F9;
@@ -99,10 +134,13 @@ QTableWidget::item, TableWidget::item {
     color: #0F172A;
     padding: 4px;
 }
-QTableWidget::item:selected, TableWidget::item:selected {
-    background-color: #90E74A;
-    color: #0F172A;
-    font-weight: bold;
+QTableWidget, TableWidget {
+    outline: 0;
+}
+/* Fundo transparente: quem pinta seleção/hover é o SelecaoItemDelegate (verde ALS) */
+QTableWidget::item:selected, TableWidget::item:selected,
+QTableWidget::item:hover, TableWidget::item:hover {
+    background-color: transparent;
 }
 """
 
@@ -124,5 +162,13 @@ QHeaderView::section {
     border: none;
     border-right: 1px solid #3E5368;
     border-bottom: 2px solid #4CAF50;
+}
+QTableWidget, TableWidget {
+    outline: 0;
+}
+/* Fundo transparente: quem pinta seleção/hover é o SelecaoItemDelegate (verde ALS) */
+QTableWidget::item:selected, TableWidget::item:selected,
+QTableWidget::item:hover, TableWidget::item:hover {
+    background-color: transparent;
 }
 """

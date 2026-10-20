@@ -37,13 +37,17 @@ class ModernSplashScreen(QWidget):
     """Splash + fluxo de atualizacao em uma unica janela"""
     concluido = Signal(object)  # Emite UpdateInfo (adiada pelo usuario) ou None. Apenas uma vez.
 
-    def __init__(self, token=None, parent=None):
+    def __init__(self, token=None, parent=None, update_info=None):
+        """update_info: abre direto no aviso da nova versao (lembrete do menu), sem checar de novo"""
         super().__init__(parent)
         self.token = token
         self.update_info = None
         self._emitido = False
         self._init_ui()
-        self._iniciar_checagem()
+        if update_info is not None:
+            self._mostrar_aviso(update_info)
+        else:
+            self._iniciar_checagem()
 
     # ------------------------------------------------------------------ UI
     def _init_ui(self):
@@ -286,6 +290,7 @@ class ModernSplashScreen(QWidget):
         if self._emitido:
             return
         self._emitido = True
-        self.timer_timeout.stop()
+        if hasattr(self, "timer_timeout"):
+            self.timer_timeout.stop()
         self.concluido.emit(info)
         self.close()

@@ -18,7 +18,7 @@ from qfluentwidgets import (
 
 from src.views_qt.dialogs import FormVeiculoDialog, ImportarOpcoesDialog
 from src.views_qt.manutencao_view import ler_planilha_inteligente
-from src.views_qt.theme_styles import CorporateStatCard
+from src.views_qt.theme_styles import CorporateStatCard, aplicar_selecao_visivel
 
 
 class VeiculosView(QWidget):
@@ -114,6 +114,7 @@ class VeiculosView(QWidget):
         self.table.setSelectionBehavior(QAbstractItemView.SelectRows)
         self.table.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        aplicar_selecao_visivel(self.table)
         self.table.itemDoubleClicked.connect(self._on_row_double_click)
         
         header = self.table.horizontalHeader()

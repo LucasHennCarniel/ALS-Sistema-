@@ -231,12 +231,10 @@ class MainWindow(FluentWindow):
             pass
 
     def _abrir_dialogo_atualizacao(self, update_info):
-        """Abre o diálogo de atualização quando o usuário clica no badge"""
-        from src.views_qt.update_dialog import UpdateNotificationDialog, DownloadProgressDialog
-        dialog = UpdateNotificationDialog(update_info, self)
-        if dialog.exec() == UpdateNotificationDialog.Accepted:
-            progress_dialog = DownloadProgressDialog(update_info, parent=self)
-            progress_dialog.exec()
+        """Reabre a janela de atualizacao (a mesma da abertura, sempre em tema escuro)"""
+        from src.views_qt.splash_screen import ModernSplashScreen
+        self._janela_atualizacao = ModernSplashScreen(update_info=update_info)
+        self._janela_atualizacao.show()
 
     def closeEvent(self, event):
         """Encerra o processo Streamlit em segundo plano ao fechar o aplicativo"""

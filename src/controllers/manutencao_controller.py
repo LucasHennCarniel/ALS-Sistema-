@@ -1,4 +1,5 @@
 from src.models.manutencao_model import ManutencaoModel
+from src.services.manutencao.calcular_dias_dinamicos import calcular_dias_dinamicos
 from src.services.manutencao.adicionar_registro import adicionar_registro
 from src.services.manutencao.atualizar_registro import atualizar_registro
 from src.services.manutencao.excluir_registro import excluir_registro
@@ -37,6 +38,8 @@ class ManutencaoController:
                 'nr_of': 'NR° OF',
                 'obs': 'OBS'
             })
+            # Dias sempre atualizados (o valor gravado no banco só muda quando o registro é salvo)
+            df['TOTAL DE DIAS EM MANUTENÇÃO'] = calcular_dias_dinamicos(df)['DIAS_CALCULADOS']
             # Cria colunas alias para facilitar acesso na View Qt e Dashboard
             df['DIAS'] = df['TOTAL DE DIAS EM MANUTENÇÃO']
             df['NRº OF'] = df['NR° OF']
