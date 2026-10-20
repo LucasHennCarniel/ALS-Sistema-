@@ -42,11 +42,19 @@ Name: "{app}\img"; Permissions: users-full
 ; Executavel principal compilado
 Source: "SistemaALS_Atualizado\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
+; Bibliotecas e dependencias do executavel (PyInstaller --onedir)
+Source: "SistemaALS_Atualizado\_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
+
 ; Imagens e icones oficiais da ALS
 Source: "SistemaALS_Atualizado\img\*"; DestDir: "{app}\img"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; Banco de dados inicial (A flag 'onlyifdoesntexist' garante que reinstalacoes NAO sobrescrevam dados reais)
 Source: "SistemaALS_Atualizado\data\sistema_als.db"; DestDir: "{app}\data"; Flags: onlyifdoesntexist
+
+[InstallDelete]
+; A cada instalacao/atualizacao remove as dependencias da versao anterior (evita sobrar arquivo velho).
+; Nao mexe em data, backup nem output: os dados do usuario ficam preservados.
+Type: filesandordirs; Name: "{app}\_internal"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\img\logo ALS.ico"

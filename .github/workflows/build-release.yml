@@ -48,7 +48,7 @@ jobs:
 
       - name: Compilar executável com PyInstaller
         run: |
-          pyinstaller --noconfirm --onefile --windowed `
+          pyinstaller --noconfirm --onedir --windowed `
             --name "SistemaManutencaoALS" `
             --icon="img/logo ALS.png" `
             --add-data "img;img" `
@@ -72,7 +72,8 @@ jobs:
           New-Item -ItemType Directory -Force -Path "SistemaALS_Atualizado\img"
           New-Item -ItemType Directory -Force -Path "SistemaALS_Atualizado\backup"
           New-Item -ItemType Directory -Force -Path "SistemaALS_Atualizado\output"
-          Move-Item -Force "dist\SistemaManutencaoALS.exe" "SistemaALS_Atualizado\"
+          # --onedir: o exe e a pasta _internal ficam juntos (abre em ~1 s em vez de descompactar ~320 MB a cada abertura)
+          Copy-Item -Force -Recurse "dist\SistemaManutencaoALS\*" "SistemaALS_Atualizado\"
           Copy-Item -Force -Recurse "img\*" "SistemaALS_Atualizado\img\"
           if (Test-Path "data\sistema_als.db") { Copy-Item -Force "data\sistema_als.db" "SistemaALS_Atualizado\data\" }
 

@@ -149,7 +149,7 @@ if exist dist rmdir /s /q dist 2>nul
 
 echo.
 echo Compilando com PyInstaller... (aguarde de 1 a 2 minutos)
-pyinstaller --noconfirm --onefile --windowed ^
+pyinstaller --noconfirm --onedir --windowed ^
     --name "SistemaManutencaoALS" ^
     --icon="img/logo ALS.png" ^
     --add-data "img;img" ^
@@ -183,7 +183,14 @@ if not exist "%PASTA_DIST%\img" mkdir "%PASTA_DIST%\img"
 if not exist "%PASTA_DIST%\backup" mkdir "%PASTA_DIST%\backup"
 if not exist "%PASTA_DIST%\output" mkdir "%PASTA_DIST%\output"
 
-move /Y "dist\SistemaManutencaoALS.exe" "%PASTA_DIST%\" >nul 2>&1
+:: --onedir: copia o exe e a pasta _internal (remove a anterior para nao sobrar arquivo de versao velha)
+if exist "%PASTA_DIST%\_internal" rmdir /s /q "%PASTA_DIST%\_internal"
+xcopy "dist\SistemaManutencaoALS\*" "%PASTA_DIST%\" /E /I /Y /Q >nul
+if errorlevel 1 (
+    echo Erro ao copiar o executavel compilado para %PASTA_DIST%!
+    pause
+    exit /b 1
+)
 if exist "data\sistema_als.db" copy /Y "data\sistema_als.db" "%PASTA_DIST%\data\sistema_als.db" >nul
 xcopy "img\*.*" "%PASTA_DIST%\img\" /E /I /Y /Q >nul 2>&1
 exit /b 0
