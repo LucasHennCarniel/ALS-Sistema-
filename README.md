@@ -1,439 +1,321 @@
 # Sistema de Gestão de Manutenção — ALS Transportes
-**Documentação funcional e técnica | Base funcional: versão 2.0 (dezembro de 2025) | Atualização da documentação: outubro de 2026**
 
-O **Sistema de Gestão de Manutenção ALS** é uma aplicação desktop desenvolvida para organizar e acompanhar as manutenções da frota da ALS Transportes. A solução centraliza os registros de entrada e saída dos veículos, os serviços realizados, os períodos de permanência em manutenção e os dados necessários para consultas e relatórios.
+Aplicação desktop para Windows que controla as manutenções da frota da ALS Transportes: entrada e saída de veículos na oficina, tempo parado, cadastros de veículos e destinos, anotações, relatórios e um dashboard analítico.
 
-A aplicação é executada em computadores Windows e utiliza banco de dados SQLite local. A distribuição passou a contar com um instalador, um fluxo de CI/CD configurado no GitHub Actions e um processo de atualização das instalações existentes. Assim, as correções e melhorias podem chegar às máquinas de destino sem o envio manual de um novo executável ou instalador a cada alteração. O usuário final não precisa instalar o Python separadamente.
-
-> **Escopo desta documentação:** as funcionalidades operacionais abaixo foram preservadas da documentação da versão 2.0. A instalação e a distribuição foram atualizadas conforme as melhorias relatadas em outubro de 2026. A atualização automática da aplicação não deve ser confundida com sincronização do banco de dados: compartilhamento de registros entre computadores, acesso remoto e trabalho multiusuário não estão comprovados pelo material disponível.
+- **Plataforma:** Windows, com banco SQLite local. O usuário final não precisa instalar Python.
+- **Distribuição:** instalador (Inno Setup) gerado pelo GitHub Actions e atualização automática pelas GitHub Releases.
+- **Versão:** definida pela tag `vX.Y.Z` no momento do release (veja [CI/CD](#5-cicd-e-release)).
 
 ---
 
-## 1. Visão geral
+## Sumário
 
-O objetivo do sistema é substituir controles manuais ou dispersos por um processo padronizado de registro e consulta das manutenções da frota. Entre seus principais recursos estão:
+1. [Stack](#1-stack)
+2. [Arquitetura](#2-arquitetura)
+3. [Estrutura de pastas](#3-estrutura-de-pastas)
+4. [Executar em desenvolvimento](#4-executar-em-desenvolvimento)
+5. [CI/CD e release](#5-cicd-e-release)
+6. [Atualização automática](#6-atualização-automática)
+7. [Regras de negócio](#7-regras-de-negócio)
+8. [Funcionalidades](#8-funcionalidades)
+9. [Dados, logs e backups](#9-dados-logs-e-backups)
+10. [Testes](#10-testes)
+11. [Solução de problemas](#11-solução-de-problemas)
+12. [Pendências conhecidas](#12-pendências-conhecidas)
 
-- Cadastro e manutenção dos registros de serviço, com inclusão, edição e exclusão.
-- Controle do status de cada manutenção: **Em serviço** ou **Finalizado**.
-- Cálculo automático do tempo de permanência do veículo em manutenção.
-- Cadastro de veículos e destinos utilizados nos registros.
-- Filtros para localização de informações por placa, veículo, status e datas.
-- Indicadores operacionais para acompanhamento da frota.
-- Exportação de relatórios em Excel, PDF, Word e texto.
-- Geração automática de cópias de segurança após alterações relevantes.
-- Instalação inicial simplificada por instalador.
-- Processo automatizado de integração e entrega com GitHub Actions, reduzindo a necessidade de distribuição manual de novas versões.
+---
 
-### 1.1. Organização da interface
+## 1. Stack
 
-A tela principal reúne filtros de consulta, uma tabela com os registros e indicadores resumidos. A organização foi pensada para priorizar as manutenções em andamento e facilitar o acesso às ações mais frequentes.
-
-Na identificação visual dos registros, são utilizadas as seguintes cores:
-
-| Elemento | Identificação |
+| Camada | Tecnologia |
 | :--- | :--- |
-| **Manutenções em andamento** | Fundo amarelo-claro |
-| **Manutenções finalizadas** | Fundo verde-claro |
-| **Ações principais** | Botões azuis |
-| **Exclusões** | Botões vermelhos, com confirmação |
+| Linguagem | Python 3.12 |
+| Interface desktop | [PySide6](https://doc.qt.io/qtforpython-6/) (Qt 6) + [PySide6-Fluent-Widgets](https://qfluentwidgets.com/), no visual Windows 11 |
+| Dashboard | [Streamlit](https://streamlit.io/) + [Plotly](https://plotly.com/python/), exibido dentro do app por `QWebEngineView` |
+| Persistência | SQLite (modo WAL) via **SQLAlchemy 2.0** ORM |
+| Dados | pandas |
+| Exportação | openpyxl (Excel), ReportLab (PDF), python-docx (Word) |
+| Empacotamento | PyInstaller (`--onedir --windowed`) |
+| Instalador | Inno Setup 6 ([installer.iss](installer.iss)) |
+| CI/CD | GitHub Actions ([build-release.yml](.github/workflows/build-release.yml)) |
+| Testes | pytest |
 
-A aplicação também possui abas para **Registros** e **Notas**. O funcionamento detalhado da aba de notas não está especificado no material desta versão.
+### Design
 
----
-
-## 2. Gestão dos registros de manutenção
-
-Cada registro representa a passagem de um veículo pelo processo de manutenção. Os dados informados permitem identificar o equipamento, o serviço e o intervalo de tempo em que ele permaneceu em atendimento.
-
-### 2.1. Cadastrar uma manutenção
-
-1. Na tela principal, selecione **Novo Registro**.
-2. Informe a **data de entrada**, que é obrigatória.
-3. Selecione a **placa** e preencha os dados disponíveis do veículo, incluindo quilometragem, destino e descrição do serviço.
-4. Se o veículo ainda estiver em manutenção, mantenha a **data de saída** em branco.
-5. Salve o registro.
-
-O sistema calcula o status e os dias de manutenção com base nas informações cadastradas. A placa informada deve corresponder a um veículo existente no cadastro.
-
-### 2.2. Editar uma manutenção
-
-1. Localize o registro na tabela, utilizando os filtros quando necessário.
-2. Selecione o item e clique em **Editar**.
-3. Atualize os dados desejados.
-4. Salve para registrar as alterações.
-
-Esse procedimento pode ser utilizado tanto para corrigir informações quanto para finalizar uma manutenção.
-
-### 2.3. Excluir registros
-
-A aplicação permite excluir um registro individualmente ou selecionar vários para exclusão em lote. Para selecionar diversos itens, utilize `Ctrl + clique` ou `Shift + clique` na tabela.
-
-Antes de concluir a operação, o sistema solicita confirmação. Exclusões devem ser tratadas como definitivas, sendo importante verificar se os registros selecionados estão corretos.
+- **Fluent Design:** tema **cinza suave** (padrão) e **modo escuro**, alternados no menu lateral.
+- **Estilos centralizados:** os estilos ficam em [src/views_qt/theme_styles.py](src/views_qt/theme_styles.py). Ali estão o `ContrastCard` (cards de alto contraste com borda de acento) e o QSS das tabelas, nas versões cinza e escura.
+- **Cor de acento:** verde ALS `#4CAF50`, usada no app e no tema do Streamlit.
+- **Ícones:** vetoriais (Fluent no desktop, Material no Streamlit), sem emojis.
+- **Splash screen:** tem animação e verifica atualizações na abertura ([splash_screen.py](src/views_qt/splash_screen.py)).
 
 ---
 
-## 3. Regras de negócio e comportamentos automáticos
+## 2. Arquitetura
 
-### 3.1. Cálculo dos dias em manutenção
+O projeto segue **MVC com uma camada de Services** para as regras de negócio:
 
-O campo de dias representa o tempo de permanência do veículo no processo de manutenção:
-
-- **Sem data de saída:** o cálculo considera o intervalo entre a data de entrada e a data atual.
-- **Com data de saída:** o cálculo considera o intervalo entre a entrada e a saída, sem continuar aumentando nos dias seguintes.
-- **Entrada e saída no mesmo dia:** a contagem mínima aplicada pelo sistema é de um dia.
-
-A regra documentada considera o dia inicial na contagem. Por exemplo, um veículo que entrou em `18/11/2025` e continuava em serviço em `09/12/2025` apresenta **22 dias**. Se permanecesse em serviço em `10/12/2025`, apresentaria **23 dias**.
-
-O valor é atualizado durante o uso ou na reabertura/atualização do sistema e é recalculado antes da geração dos relatórios.
-
-### 3.2. Finalização da manutenção
-
-Ao alterar o status de um registro para **Finalizado**, se a data de saída estiver vazia, o sistema a preenche automaticamente com a data atual. A partir desse momento, o total de dias é calculado sobre o período encerrado.
-
-O material original também informa que o status pode ser alterado manualmente. Por isso, a data de saída e o status devem ser conferidos durante a edição para manter a consistência do histórico.
-
-### 3.3. Ordenação dos registros
-
-Na tabela principal, os registros são organizados da seguinte maneira:
-
-1. Manutenções com status **Em serviço** aparecem primeiro.
-2. Manutenções com status **Finalizado** aparecem em seguida.
-3. Dentro de cada grupo, os itens são exibidos do mais recente para o mais antigo.
-
-Essa ordem é preservada ao aplicar filtros, facilitando a identificação das atividades ainda pendentes.
-
-### 3.4. Validações importantes
-
-| Regra | Comportamento esperado |
-| :--- | :--- |
-| **Data de entrada** | Campo obrigatório no cadastro da manutenção |
-| **Placa** | Deve estar cadastrada na relação de veículos |
-| **Formato de placa** | Validado conforme os formatos brasileiros aceitos pelo sistema |
-| **Datas** | Informadas no formato `DD/MM/AAAA` |
-| **Status Finalizado** | Requer data de saída; caso esteja vazia, é preenchida automaticamente |
-| **Exclusão** | Exige confirmação do usuário |
-
----
-
-## 4. Consultas, filtros e indicadores
-
-### 4.1. Pesquisa de manutenções
-
-Os registros podem ser consultados por placa, veículo, status, data de entrada e data de saída. Os filtros podem ser combinados para restringir os resultados.
-
-Para pesquisar, informe os critérios desejados e selecione **Buscar**. Para retornar à listagem sem filtros, utilize **Limpar**.
-
-### 4.2. Indicadores operacionais
-
-A faixa de indicadores da tela principal apresenta:
-
-| Indicador | Informação apresentada |
-| :--- | :--- |
-| **Total de registros** | Quantidade de registros considerados na visualização |
-| **Em serviço** | Manutenções que permanecem abertas |
-| **Finalizados** | Manutenções registradas como concluídas |
-| **Tempo médio** | Média de duração das manutenções, exibida em dias inteiros |
-| **Placas únicas** | Quantidade de placas distintas consideradas |
-
-Os indicadores são atualizados após a inclusão, edição ou exclusão de registros e também após a aplicação de filtros.
-
----
-
-## 5. Cadastros auxiliares
-
-### 5.1. Veículos
-
-O cadastro de veículos organiza a identificação dos equipamentos utilizados nos lançamentos de manutenção.
-
-Para incluir um veículo:
-
-1. Acesse **Veículos** e selecione **Novo Veículo**.
-2. Preencha placa, tipo, descrição e quilometragem.
-3. Confirme os dados e salve.
-
-Veículos existentes podem ser editados ou excluídos pelos comandos da mesma tela. O sistema valida o formato da placa e pode impedir a exclusão de veículos associados a registros de manutenção.
-
-### 5.2. Destinos
-
-O cadastro de destinos permite reutilizar informações recorrentes, reduzindo digitação e padronizando a nomenclatura nos lançamentos.
-
-São disponibilizadas operações para adicionar, editar e excluir destinos. Quando um destino estiver associado a registros existentes, sua exclusão poderá ser bloqueada para preservar a integridade dos dados.
-
----
-
-## 6. Emissão de relatórios
-
-O sistema exporta dados de manutenção em diferentes formatos, para atender às necessidades de acompanhamento operacional, análise e compartilhamento.
-
-| Formato | Extensão | Aplicação principal |
-| :--- | :--- | :--- |
-| **Excel** | `.xlsx` | Análise de dados em planilhas, com colunas e estatísticas |
-| **PDF** | `.pdf` | Consulta e compartilhamento de relatório com apresentação padronizada |
-| **Word** | `.docx` | Edição posterior de um documento com tabela e indicadores |
-| **Texto** | `.txt` | Consulta ou compartilhamento em formato simples e leve |
-
-### 6.1. Gerar um relatório
-
-1. Se necessário, aplique os filtros para selecionar o conjunto de registros desejado.
-2. Clique em **Relatório** na tela principal.
-3. Escolha o formato de exportação.
-4. Aguarde a geração e consulte o documento.
-
-Os arquivos são armazenados na pasta `output/`, com data e hora no nome. Exemplo: `Relatorio_20251209_143022.pdf`.
-
-O sistema tenta abrir o relatório automaticamente após sua geração, desde que exista no computador um aplicativo associado ao formato selecionado. Os dias de manutenção são recalculados antes da exportação, e a média é exibida como número inteiro.
-
----
-
-## 7. Banco de dados e informações iniciais
-
-A versão documentada utiliza **SQLite**, com persistência dos dados em arquivo local. O banco fornecido originalmente contém **141 veículos** cadastrados.
-
-| Categoria informada | Quantidade |
-| :--- | :---: |
-| **Cavalos** | 39 |
-| **Carretas de 1 eixo** | 46 |
-| **Carretas de 2 eixos** | 19 |
-| **Bugs** | 21 |
-| **LS** | 6 |
-| **Outras categorias** *(conforme diferença para o total informado)* | 10 |
-| **Total** | **141** |
-
-Na base original, há referência a um cadastro vazio entre os cavalos e cinco entre as carretas de dois eixos. Recomenda-se revisar essas ocorrências antes de uma nova distribuição, caso os dados sejam usados em produção.
-
-O arquivo principal do banco está identificado como `data/sistema_als.db`.
-
----
-
-## 8. Backups e proteção dos dados
-
-O sistema cria cópias de segurança após alterações relevantes no banco de dados. Os arquivos ficam armazenados na pasta `backup/`, com nomes que incluem a data e a hora da geração, por exemplo:
-
-```text
-database_backup_20251209_143022.db
+```
+View (PySide6 / Streamlit)
+   │  eventos da interface
+   ▼
+Controller          → apenas encaminha as ações
+   │
+   ▼
+Service             → regras de negócio (uma função por arquivo)
+   │
+   ▼
+Model (SQLAlchemy)  → entidades ORM e consultas
+   │
+   ▼
+SQLite (data/sistema_als.db, WAL)
 ```
 
-Essa estratégia mantém versões anteriores do banco que podem auxiliar em recuperações. Entretanto, o backup é local: ele não substitui uma cópia externa em outro dispositivo ou ambiente. Em caso de falha do computador ou da unidade de armazenamento, o banco principal e seus backups locais podem ser afetados simultaneamente.
+- **Models** ([src/models/](src/models/)): `database.py` gerencia a engine, as sessões e os PRAGMAs do SQLite (`journal_mode=WAL`, `foreign_keys=ON`, `busy_timeout`). `entities.py` mapeia Veículo, Manutenção, Destino e Nota. Há um `*_model.py` por entidade.
+- **Controllers** ([src/controllers/](src/controllers/)): não têm regra própria. Delegam para os services.
+- **Services** ([src/services/](src/services/)): cada regra fica no próprio arquivo e com nome explícito, como `calcular_dias_manutencao.py` e `normalizar_status.py`. Isso facilita testar e localizar cada regra.
+- **Views** ([src/views_qt/](src/views_qt/)): telas PySide6.
 
-Como o material original não descreve uma política automática de retenção, é recomendável verificar periodicamente o espaço ocupado pela pasta e preservar cópias recentes e confiáveis antes de apagar arquivos antigos.
+### Integração com o Streamlit
 
----
+O dashboard **não é um site separado**. A aba *Dashboard* inicia o próprio executável como subprocesso:
 
-## 9. Instalação, distribuição e atualização do sistema
+```
+SistemaManutencaoALS.exe --run-streamlit   (ou: python src/main.py --run-streamlit)
+```
 
-O processo de distribuição foi modernizado em outubro de 2026. Inicialmente, a aplicação era entregue mediante cópia de um arquivo executável ou de uma pasta completa. Agora, existe um instalador para a primeira implantação e um processo automatizado para a entrega de alterações às instalações já existentes.
+[main.py](src/main.py) detecta esse argumento e chama o CLI do Streamlit, que sobe sem janela de console em `http://localhost:8505`. A tela exibe esse endereço num `QWebEngineView`.
 
-### 9.1. Instalação inicial
-
-Para disponibilizar o sistema em um novo computador:
-
-1. Obtenha o instalador correspondente à versão disponibilizada para a ALS Transportes.
-2. Execute o instalador e siga as instruções apresentadas.
-3. Inicie o **Sistema de Gestão de Manutenção ALS** após a conclusão da instalação.
-4. Verifique se os cadastros e as funcionalidades esperadas estão disponíveis na estação.
-
-A instalação inicial é diferente da atualização de uma estação que já possui o sistema. O instalador precisa ser disponibilizado para o primeiro uso, enquanto as correções posteriores não exigem que o desenvolvedor reenvie manualmente um novo `.exe` ou instalador a cada máquina.
-
-### 9.2. Entrega contínua de versões
-
-O projeto passou a utilizar **GitHub Actions** para automatizar etapas do processo de integração e entrega (CI/CD). De acordo com o funcionamento relatado, uma alteração publicada pelo desenvolvedor pode ser processada e distribuída pelo fluxo configurado, sem a repetição do procedimento manual de copiar executáveis para os demais computadores.
-
-O fluxo operacional é descrito em alto nível a seguir:
-
-1. **Desenvolvimento:** uma correção ou melhoria é implementada no código-fonte.
-2. **Versionamento:** a alteração é enviada ao repositório Git que concentra o projeto.
-3. **Automação:** o workflow do GitHub Actions executa as etapas de preparação, empacotamento e/ou publicação definidas na configuração do projeto.
-4. **Disponibilização:** a nova versão é disponibilizada pelo canal adotado na implantação.
-5. **Atualização das estações:** o mecanismo de atualização utilizado no sistema permite que as instalações existentes recebam a nova versão sem envio manual de arquivos pelo desenvolvedor.
-
-> **Importante:** o GitHub Actions executa os workflows de automação, mas não atualiza sozinho os programas instalados nos computadores. Para que o processo funcione de ponta a ponta, também é necessário um meio de disponibilizar as versões e um mecanismo que as aplique no destino. Como os arquivos do workflow e do atualizador não foram fornecidos, os nomes das ações, gatilhos, verificações de versão e procedimentos internos de instalação não são especificados aqui.
-
-### 9.3. Componentes da distribuição
-
-| Componente | Responsabilidade |
-| :--- | :--- |
-| **Instalador** | Preparar o computador para o primeiro uso da aplicação. |
-| **Executável da aplicação** | Executar a interface e as funcionalidades do sistema na estação. |
-| **GitHub Actions** | Automatizar as rotinas configuradas de integração, empacotamento e entrega de novas versões. |
-| **Mecanismo de atualização** | Permitir que uma instalação existente receba correções sem a transferência manual de um novo executável pelo desenvolvedor. |
-| **Banco de dados SQLite** | Armazenar os dados operacionais mantidos pela instalação, conforme a arquitetura local documentada. |
-
-### 9.4. Atualização da aplicação não é sincronização de dados
-
-Com a nova distribuição, o software pode ser atualizado em diferentes computadores. Isso não significa, por si só, que os registros de manutenção estejam compartilhados entre eles.
-
-Na arquitetura SQLite local descrita nesta documentação, cada instalação pode ter sua própria base de dados. Caso seja necessário que vários usuários consultem e alterem os mesmos registros simultaneamente, será preciso documentar e validar uma solução específica de compartilhamento ou centralização dos dados.
-
-Por segurança, o processo de atualização deve preservar o banco de dados e as informações operacionais existentes. Essa é uma verificação recomendada, não uma garantia técnica aferida nos arquivos do instalador e do workflow.
-
-### 9.5. Requisitos e compatibilidade
-
-A aplicação é destinada a Windows e não exige a instalação manual do interpretador Python quando distribuída em formato empacotado. A versão mínima do Windows deve ser validada com o instalador e as dependências efetivamente utilizados.
-
-As funcionalidades baseadas em SQLite local podem operar sem conexão com a internet. A obtenção de novas versões, contudo, depende de acesso ao canal de atualização configurado, quando esse canal for remoto.
+O Streamlit usa os **mesmos Controllers e Services** do app desktop, então os números são os mesmos nas duas telas. Ele lê o mesmo banco, e o modo WAL permite leitura e escrita simultâneas. O processo é encerrado (`taskkill /T`) quando o app fecha ou antes de uma atualização.
 
 ---
 
-## 10. Estrutura do projeto
-
-A organização de referência da aplicação e de seu código-fonte é a seguinte. A localização exata dos arquivos do instalador e do atualizador depende da implementação atual:
+## 3. Estrutura de pastas
 
 ```text
-Sistema Manutenção ALS/
-├── .github/
-│   └── workflows/              # Fluxos do GitHub Actions (CI/CD)
+Planilha-ALS-/
+├── .github/workflows/
+│   └── build-release.yml        # pipeline de build, testes e release
 ├── data/
-│   └── sistema_als.db         # Banco de dados SQLite
-├── img/                       # Imagens e identidade visual
-├── backup/                    # Cópias de segurança
-├── output/                    # Relatórios exportados
-└── src/                       # Código-fonte da aplicação
-    ├── main.py                # Tela principal e formulários
-    ├── database.py            # Acesso e operações de banco de dados
-    ├── veiculos.py            # Regras e operações de veículos
-    ├── destinos.py            # Regras e operações de destinos
-    ├── utils.py               # Utilitários, cálculos e relatórios
-    ├── interface_veiculos.py  # Interface de cadastro de veículos
-    └── interface_destinos.py  # Interface de cadastro de destinos
+│   ├── sistema_als.db           # banco SQLite
+│   ├── config_colunas.txt
+│   └── logs/                    # als.log e faulthandler.log (não versionado)
+├── img/                         # logo e ícone (.png / .ico)
+├── src/
+│   ├── main.py                  # ponto de entrada (app Qt ou modo --run-streamlit)
+│   ├── app_qt.py                # QApplication, log, instância única, splash
+│   ├── config.py                # caminhos, APP_VERSION, repositório de atualização
+│   ├── dashboard_streamlit.py   # dashboard analítico
+│   ├── importador.py            # importação de planilhas
+│   ├── utils.py                 # geração de PDF/Word e utilitários
+│   ├── models/                  # M — ORM e acesso a dados
+│   ├── controllers/             # C — veículo, manutenção, destino, nota
+│   ├── services/                # regras de negócio
+│   │   ├── manutencao/          #   status, cálculo de dias, importação, estatísticas
+│   │   ├── veiculo/             #   cadastro, KM, formatação de placas
+│   │   ├── destino/             #   cadastro e destinos padrão
+│   │   ├── nota/                #   anotações
+│   │   ├── dashboard/           #   KPIs, aging, ranking de dias parados
+│   │   ├── export_service.py    #   exportação Excel/PDF
+│   │   └── updater_service.py   #   atualização automática
+│   ├── views_qt/                # V — interface atual (PySide6)
+│   ├── views/                   # interface antiga (Tkinter) — legado
+│   └── main_legacy_tkinter.py   # app antigo — legado, fora do fluxo atual
+├── tests/                       # testes pytest
+├── installer.iss                # script do Inno Setup
+├── SISTEMA_ALS.bat              # menu local: rodar, gerar .exe, gerar instalador
+├── requirements.txt
+└── pytest.ini
 ```
 
-Arquivos auxiliares, como scripts de empacotamento, `requirements.txt` e configurações do instalador/atualizador, integram o processo de desenvolvimento e distribuição. A árvore acima representa os componentes documentados e a convenção de configuração do GitHub Actions; os caminhos específicos devem ser conferidos no repositório.
+O app cria `backup/` e `output/` na primeira execução, e as duas pastas ficam fora do git.
 
 ---
 
-## 11. Especificações técnicas
+## 4. Executar em desenvolvimento
 
-| Componente | Tecnologia ou abordagem |
-| :--- | :--- |
-| **Linguagem da versão documentada** | Python 3.13 |
-| **Interface gráfica** | Tkinter, com ttkbootstrap para temas |
-| **Persistência** | SQLite 3 |
-| **Manipulação de dados** | pandas |
-| **Relatórios PDF** | ReportLab |
-| **Relatórios Word** | python-docx |
-| **Relatórios Excel** | openpyxl |
-| **Manipulação de imagens** | Pillow |
-| **Empacotamento** | PyInstaller (conforme a base técnica documentada) |
-| **Instalação** | Instalador para implantação inicial (ferramenta não informada) |
-| **CI/CD** | GitHub Actions |
-| **Atualização das estações** | Processo automatizado relatado; implementação específica não fornecida |
-
-### 11.1. Persistência e atualização de dados
-
-O banco SQLite é a fonte principal das informações. Conforme a arquitetura descrita, a aplicação utiliza `DataFrame` como estrutura auxiliar de leitura, mas as gravações são persistidas no banco.
-
-Após operações de inclusão, alteração ou exclusão, a aplicação executa a transação correspondente, confirma a gravação e atualiza os dados apresentados. A camada de acesso utiliza tratamento de falhas com possibilidade de *rollback*, para evitar manter transações incompletas.
-
-### 11.2. Principais dependências
-
-O material original indica as seguintes versões mínimas de bibliotecas:
-
-```txt
-pandas>=2.0.0
-reportlab>=3.6.0
-python-docx>=0.8.11
-openpyxl>=3.1.0
-Pillow>=10.0.0
-ttkbootstrap>=1.10.0
-```
-
-A compatibilidade de cada versão deve ser conferida com o interpretador Python adotado no ambiente de desenvolvimento.
-
-### 11.3. Executar em modo de desenvolvimento
-
-Com o Python e as dependências corretamente instalados:
+Pré-requisitos: Windows, Python 3.12 e Git.
 
 ```bash
+python -m venv venv
+venv\Scripts\activate
 pip install -r requirements.txt
+
 python src/main.py
 ```
 
-O material anterior mencionava Python 3.8 ou superior como requisito geral, enquanto as especificações técnicas registram Python 3.13. Para reproduzir a versão documentada com mais fidelidade, utilize o ambiente de desenvolvimento efetivamente validado para o projeto.
+Também dá para usar o menu [SISTEMA_ALS.bat](SISTEMA_ALS.bat), que instala as dependências que faltarem e oferece estas opções:
 
-### 11.4. Empacotamento e distribuição
+| Opção | O que faz |
+| :--- | :--- |
+| `1` | Inicia o sistema |
+| `2` | Gera o executável em `SistemaALS_Atualizado/` (PyInstaller) |
+| `3` | Gera o instalador em `dist_installer/` (exige o Inno Setup 6: `winget install JRSoftware.InnoSetup`) |
 
-A documentação anterior descrevia a geração local do executável pelo script:
+Para abrir só o dashboard no navegador:
 
-```bat
-GERAR_EXECUTAVEL.bat
+```bash
+python src/main.py --run-streamlit
 ```
 
-Na configuração anterior, o arquivo gerado era esperado no caminho:
+---
 
-```text
-dist\SistemaManutencaoALS.exe
+## 5. CI/CD e release
+
+O workflow [build-release.yml](.github/workflows/build-release.yml) roda em `windows-latest`.
+
+**Gatilhos**
+- `push` de tag `v*`: faz o build completo e publica a GitHub Release.
+- `workflow_dispatch` (manual): faz build e testes e guarda o instalador como artefato, mas **não** publica Release.
+
+**Etapas**
+
+1. Checkout e Python 3.12, com cache do pip.
+2. `pip install -r requirements.txt` e pytest.
+3. **Sincroniza a versão:** a tag (`v1.0.4` → `1.0.4`) é gravada em `APP_VERSION` ([config.py](src/config.py)) e em `MyAppVersion` ([installer.iss](installer.iss)).
+4. **Testes:** `pytest` com `QT_QPA_PLATFORM=offscreen`. Se algum falhar, o release é interrompido.
+5. **PyInstaller** `--onedir --windowed`, com `--collect-all streamlit/plotly` e `--hidden-import` para PySide6, qfluentwidgets, SQLAlchemy e outros.
+6. **Monta a pasta** `SistemaALS_Atualizado/` (exe, `_internal/`, `img/`, `data/`).
+7. **Instala o Inno Setup** via Chocolatey e compila `Instalador_SistemaALS_Setup.exe`.
+8. **Validação:** falha se o instalador tiver menos de 20 MB, sinal de que o payload não foi empacotado.
+9. **Upload** do instalador como artefato do workflow.
+10. **Publica a GitHub Release** com o instalador e notas geradas automaticamente.
+
+**Como lançar uma versão**
+
+```bash
+git tag v1.0.4
+git push origin v1.0.4
 ```
 
-Com a implantação de CI/CD, o fluxo automatizado do GitHub Actions passou a fazer parte da estratégia principal de distribuição. O script manual permanece aqui como referência histórica ou alternativa de desenvolvimento, caso ainda exista na estrutura atual. Antes de publicar atualizações, valide a inicialização, a preservação do banco, a gravação de registros, a emissão de relatórios e o funcionamento da atualização em uma estação de teste.
+Para tornar a atualização **obrigatória**, coloque `[OBRIGATORIA]` no título ou nas notas da Release.
+
+**O que o instalador faz** ([installer.iss](installer.iss))
+
+- Instala em `C:\Sistema ALS` sem exigir administrador (`PrivilegesRequired=lowest`).
+- Usa um `AppId` fixo, então reinstalar substitui a versão anterior.
+- **Preserva os dados:** o banco só é copiado se ainda não existir (`onlyifdoesntexist`). As pastas `data`, `backup` e `output` não são tocadas.
+- Apaga o `_internal/` antigo antes de copiar o novo, para não sobrar DLL de versão anterior.
+- Fecha o app se ele estiver aberto (`CloseApplications=force`) e o reabre ao final no modo silencioso.
 
 ---
 
-## 12. Exemplos de operação
+## 6. Atualização automática
 
-### Exemplo A — Registrar uma nova manutenção
-Um veículo dá entrada na oficina e ainda não possui previsão confirmada de saída. O operador cadastra a data de entrada, seleciona a placa, informa o serviço e salva sem preencher a data de saída.
-- **Resultado esperado:** a manutenção permanece em serviço e sua duração passa a ser contabilizada automaticamente.
+Implementada em [updater_service.py](src/services/updater_service.py), a partir da splash screen:
 
-### Exemplo B — Encerrar uma manutenção
-Após a conclusão do serviço, o operador localiza a manutenção, abre a edição e modifica o status para **Finalizado**. Se o campo de saída estiver vazio, o sistema registra a data atual.
-- **Resultado esperado:** a manutenção passa a compor o histórico de serviços concluídos, com duração final calculada.
+1. Consulta `GET /repos/LucasHennCarniel/ALS-Sistema-/releases/latest` com timeout de 5 s. Sem internet, segue sem atualizar.
+2. Compara a tag com `APP_VERSION` e verifica se a Release tem a marca `[OBRIGATORIA]`.
+3. Faz **backup** do banco em `backup/sistema_als_pre_update_<data>.db`.
+4. Baixa o instalador, tentando de novo em caso de falha e **retomando o download** (HTTP `Range`) de onde parou.
+5. Libera os recursos: fecha a engine do SQLite e encerra o servidor Streamlit.
+6. Executa o instalador com `/SILENT /SUPPRESSMSGBOXES /NORESTART /DIR="<pasta atual>" /LOG=...` e encerra o app.
+7. Grava um **marcador de instalação** (PID e versão). Uma cópia antiga aberta durante a troca de arquivos espera em vez de abrir.
+8. Lê o log do Inno Setup para confirmar se a instalação terminou com sucesso.
 
-### Exemplo C — Emitir um relatório por período
-O operador filtra os registros do intervalo desejado, por exemplo, `01/12/2025` a `31/12/2025`, e gera a exportação em Excel.
-- **Resultado esperado:** é criado um arquivo na pasta `output/` com os registros do conjunto filtrado, pronto para consulta e análise.
+> **Atualizar o app não é o mesmo que sincronizar dados.** Cada computador tem o próprio banco SQLite local. A atualização troca apenas o programa.
 
 ---
 
-## 13. Solução de problemas
+## 7. Regras de negócio
 
-| Situação | Verificação ou procedimento sugerido |
+### Status
+
+Definidos em [status.py](src/services/manutencao/status.py), a fonte única para formulários, filtros, cards e dashboard:
+
+| Status | Veículo parado? |
+| :--- | :---: |
+| `AGENDADO` | Não |
+| `EM MANUTENÇÃO` | Sim |
+| `FINALIZADO` | Não |
+| `SINISTRO` | Sim |
+
+Status antigos (`EM SERVIÇO`, `AGUARDANDO PEÇAS`, `PREVENTIVA`, `CORRETIVA`, etc.) são convertidos na leitura, sem alterar o banco.
+
+Quando o status fica em branco, ele é definido automaticamente ([recalcular_campos.py](src/services/manutencao/recalcular_campos.py)):
+
+- com data de saída → `FINALIZADO`
+- só com data de entrada → `EM MANUTENÇÃO`
+- sem datas → `AGENDADO`
+
+### Dias em manutenção
+
+- **Fórmula:** dias corridos = `data de saída − data de entrada`, sem contar o dia de entrada e nunca negativo.
+- **Sem data de saída:** a conta vai até **hoje**, então o número cresce a cada dia.
+- **Valor sempre atualizado:** telas, dashboard e relatórios recalculam o valor na hora ([calcular_dias_dinamicos.py](src/services/manutencao/calcular_dias_dinamicos.py)), sem depender do que foi gravado no banco.
+- **Exceções:** registros `AGENDADO`, ou `FINALIZADO` sem data de saída, mantêm o valor gravado.
+
+### Validações
+
+- Datas no formato `DD/MM/AAAA`.
+- A placa precisa existir no cadastro de veículos.
+- Exclusões pedem confirmação.
+
+---
+
+## 8. Funcionalidades
+
+Navegação lateral do app:
+
+| Aba | Recursos |
 | :--- | :--- |
-| **O relatório é gerado, mas não abre** | Verifique se existe um aplicativo padrão para o formato. O arquivo permanece disponível em `output/`. |
-| **A contagem de dias parece desatualizada** | Utilize **Atualizar** ou feche e abra novamente o sistema. Confira as datas do registro. |
-| **Não é possível excluir um veículo ou destino** | Verifique se o item está associado a registros existentes. |
-| **A pasta de backups ocupa muito espaço** | Revise os arquivos antigos, mantenha cópias válidas e, preferencialmente, salve uma cópia fora do computador. |
-| **O executável abre sem os dados esperados** | Confira a localização do arquivo SQLite e as permissões de leitura e gravação na pasta `data/`. |
-| **Uma estação não recebeu uma nova versão** | Verifique a execução do workflow no GitHub Actions, a disponibilização da versão e o comportamento do mecanismo de atualização da estação. |
-| **Dados de manutenção parecem diferentes entre dois computadores** | Confirme onde está armazenado o banco utilizado por cada instalação. Atualização automática do aplicativo não equivale à sincronização dos dados. |
+| **Manutenções** | Cadastro, edição e exclusão (também em lote, com `Ctrl`/`Shift` + clique), filtros, cards de indicadores, importação de planilhas (`.xlsx`, `.xls`, `.csv`), exportação para Excel e PDF |
+| **Dashboard** | KPIs (veículos parados, disponibilidade da frota, tempo médio de reparo, registro mais antigo, reincidentes), aging (0–3, 4–7, 8–15 e 16+ dias), top 10 placas por dias parados, gráficos por categoria e tipo de veículo |
+| **Veículos** | Cadastro de placa, tipo, descrição e KM |
+| **Anotações** | Notas livres |
+| **Configurações** | Preferências e alternância de tema (cinza / escuro) |
+
+Os relatórios são salvos no local escolhido pelo usuário. A pasta padrão é `output/`.
 
 ---
 
-## 14. Verificação e documentação complementar
+## 9. Dados, logs e backups
 
-A documentação anterior registra testes sobre 12 funcionalidades, com resultado informado de 100% de sucesso na verificação realizada à época. Esse registro se refere à versão e ao ambiente testados e não comprova o funcionamento do instalador ou do novo CI/CD. Após as mudanças de distribuição, recomenda-se validar o processo completo: instalação inicial, publicação de uma alteração, aplicação da atualização em outra estação, preservação dos dados locais e possibilidade de recuperação diante de falhas.
-
-Arquivos complementares mencionados no projeto:
-
-- `RELATORIO_VERIFICACAO.md` — registro de verificações e testes.
-- `FUNCIONALIDADE_DIAS_CORRENDO.md` — detalhamento da regra de cálculo dos dias.
-- `INSTRUCOES_DISTRIBUICAO.md` — instruções para preparar a entrega do sistema.
-
----
-
-## 15. Identificação do projeto
-
-| Informação | Descrição |
+| Caminho | Conteúdo |
 | :--- | :--- |
-| **Nome** | Sistema de Gestão de Manutenção ALS |
-| **Organização atendida** | ALS Transportes |
-| **Versão documentada** | 2.0 |
-| **Referência da versão** | Dezembro de 2025 |
-| **Plataforma** | Windows (aplicação desktop) |
-| **Modalidade de operação** | Dados locais; acesso ao canal de distribuição necessário para obter atualizações remotas |
-| **Distribuição** | Instalador para primeiro uso e atualizações posteriores sem reenvio manual de executáveis |
-| **Integração e entrega** | GitHub Actions (CI/CD) |
-| **Tipo de licença informado** | Proprietária |
+| `data/sistema_als.db` | Banco principal (os arquivos `-wal` e `-shm` são do modo WAL) |
+| `data/logs/als.log` | Log da aplicação, que funciona também no `.exe` sem console |
+| `data/logs/faulthandler.log` | Pilha das threads em caso de travamento (se a abertura passar de 20 s) |
+| `backup/` | Cópias do banco feitas antes de cada atualização |
+| `output/` | Relatórios exportados |
+
+Os backups são **locais**. Guarde cópias periódicas do banco fora do computador.
+
+O app permite **só uma instância aberta** por vez (`QLockFile`).
 
 ---
 
-## 16. Evolução recente da distribuição
+## 10. Testes
 
-Em outubro de 2026, foram incorporadas as seguintes melhorias à entrega do sistema:
+```bash
+pytest
+```
 
-- **Instalador dedicado:** simplificação do procedimento de implantação em novos computadores.
-- **Pipeline CI/CD com GitHub Actions:** automatização do processo configurado para preparar e disponibilizar alterações do aplicativo.
-- **Atualização sem envio manual:** eliminação da rotina anterior de encaminhar um novo arquivo `.exe` ou instalador para cada estação sempre que uma correção fosse implementada.
+Os testes ficam em [tests/](tests/) e cobrem banco, veículos, destinos, notas, status, cálculo de dias, serviços do dashboard, instância única, splash e o updater (comando do instalador e download retomável). O [pytest.ini](pytest.ini) define `pythonpath = .`, então basta rodar `pytest` na raiz. Os testes de interface usam `QT_QPA_PLATFORM=offscreen` no CI.
 
-Esses avanços melhoram a manutenção e a distribuição do software. Eles não alteram, isoladamente, o modelo de persistência SQLite local nem demonstram acesso simultâneo aos mesmos registros por múltiplas estações.
+---
 
-> **Detalhes pendentes para documentação técnica completa:** gatilhos do workflow, nomes dos arquivos de instalação, ferramenta empregada para criar o instalador, publicação dos artefatos, política de versões, funcionamento do atualizador e estratégia de reversão de uma atualização com falha.
+## 11. Solução de problemas
+
+| Situação | O que verificar |
+| :--- | :--- |
+| App não abre ou fecha sozinho | `data/logs/als.log` e `data/logs/faulthandler.log` |
+| "Já existe uma instância aberta" | Feche a outra janela ou finalize o processo `SistemaManutencaoALS.exe` |
+| Dashboard fica em "Iniciando servidor" | A porta `8505` pode estar ocupada por outro processo |
+| Máquina não recebeu a versão nova | A Release foi publicada (não é rascunho)? O workflow passou? A máquina tem acesso ao GitHub? |
+| Atualização falhou no meio | O banco anterior está em `backup/sistema_als_pre_update_*.db`. Rode o instalador da Release manualmente |
+| Dados diferentes entre computadores | Esperado: cada instalação tem o próprio banco local |
+
+---
+
+## 12. Pendências conhecidas
+
+- **Banco versionado:** o `data/sistema_als.db` ainda está versionado, apesar de constar no `.gitignore`, e o workflow o empacota no instalador. Antes de publicar Releases, use um banco sem dados reais ou crie o banco vazio na primeira execução, e tire o arquivo do git com `git rm --cached data/sistema_als.db`.
+- **Testes só no release:** o CI roda os testes apenas em tags. Um workflow em `push`/`pull_request` na `main` anteciparia os erros.
+- **Sem assinatura de código:** o instalador não é assinado, então o Windows SmartScreen pode exibir o aviso de "editor desconhecido".
+- **Download sem checksum:** o updater não confere um checksum (SHA-256) do instalador baixado.
+- **Versão no repositório desatualizada:** `APP_VERSION` e `MyAppVersion` só são atualizados dentro do CI. No repositório ficam com a última versão definida à mão.
+- **Código legado:** `src/views/` e `src/main_legacy_tkinter.py` são do app Tkinter antigo e podem ser removidos quando não forem mais necessários.
+
+---
+
+**Licença:** proprietária — ALS Transportes.
