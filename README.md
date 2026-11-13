@@ -18,10 +18,11 @@ Aplicação desktop para Windows que controla as manutenções da frota da ALS T
 6. [Atualização automática](#6-atualização-automática)
 7. [Regras de negócio](#7-regras-de-negócio)
 8. [Funcionalidades](#8-funcionalidades)
-9. [Dados, logs e backups](#9-dados-logs-e-backups)
-10. [Testes](#10-testes)
-11. [Solução de problemas](#11-solução-de-problemas)
-12. [Pendências conhecidas](#12-pendências-conhecidas)
+9. [Dashboard analítico](#9-dashboard-analítico)
+10. [Dados, logs e backups](#10-dados-logs-e-backups)
+11. [Testes](#11-testes)
+12. [Solução de problemas](#12-solução-de-problemas)
+13. [Pendências conhecidas](#13-pendências-conhecidas)
 
 ---
 
@@ -259,7 +260,7 @@ Navegação lateral do app:
 | Aba | Recursos |
 | :--- | :--- |
 | **Manutenções** | Cadastro, edição e exclusão (também em lote, com `Ctrl`/`Shift` + clique), filtros, cards de indicadores, importação de planilhas (`.xlsx`, `.xls`, `.csv`), exportação para Excel e PDF |
-| **Dashboard** | KPIs (veículos parados, disponibilidade da frota, tempo médio de reparo, registro mais antigo, reincidentes), aging (0–3, 4–7, 8–15 e 16+ dias), top 10 placas por dias parados, gráficos por categoria e tipo de veículo |
+| **Dashboard** | Indicadores de manutenção e panorama da frota em Streamlit (detalhes na [seção 9](#9-dashboard-analítico)) |
 | **Veículos** | Cadastro de placa, tipo, descrição e KM |
 | **Anotações** | Notas livres |
 | **Configurações** | Preferências e alternância de tema (cinza / escuro) |
@@ -268,7 +269,82 @@ Os relatórios são salvos no local escolhido pelo usuário. A pasta padrão é 
 
 ---
 
-## 9. Dados, logs e backups
+## 9. Dashboard analítico
+
+O dashboard fica em [src/dashboard_streamlit.py](src/dashboard_streamlit.py), feito com **Streamlit + Plotly**, e aparece na aba *Dashboard* do app. A forma como o processo sobe está em [Integração com o Streamlit](#integração-com-o-streamlit).
+
+### Como funciona
+
+| Item | Detalhe |
+| :--- | :--- |
+| Servidor | `http://localhost:8505`, sem console, iniciado só quando a aba é aberta |
+| Exibição | `QWebEngineView` dentro da janela Qt ([dashboard_view.py](src/views_qt/dashboard_view.py)) |
+| Origem dos dados | Os mesmos Controllers do app (`ManutencaoController`, `VeiculoController`, `DestinoController`, `NotaController`) |
+| Cálculos | Services em [src/services/dashboard/](src/services/dashboard/), escritos em pandas |
+| Cache | `@st.cache_data(ttl=20)`: os dados são relidos do banco no máximo a cada 20 s |
+| Atualizar | Botão **Atualizar Dados** (limpa o cache) ou botão de recarregar na aba do app |
+| Acesso ao banco | Somente leitura. O modo WAL permite ler enquanto o app grava |
+
+### Abas
+
+O dashboard tem duas abas. Se ainda não houver manutenções cadastradas, **Panorama da Frota** aparece primeiro.
+
+#### Indicadores de Manutenção
+
+**Filtros.** A barra lateral tem busca rápida (placa, veículo, serviço, destino, OF), placa, tipo de veículo, destino programado e período de entrada. Na área principal, uma seleção de **status** com a contagem de cada um.
+
+**KPIs** ([calcular_kpis_manutencao.py](src/services/dashboard/calcular_kpis_manutencao.py))
+
+| KPI | Cálculo | Respeita filtros? |
+| :--- | :--- | :---: |
+| **Veículos Parados** | Placas distintas com registro `EM MANUTENÇÃO` ou `SINISTRO` | Não (frota inteira) |
+| **Disponibilidade** | `1 − parados ÷ veículos ativos`, em % | Não (frota inteira) |
+| **Reparo Médio** | Média de dias dos registros `FINALIZADO` | Sim |
+| **Mais Antigo** | Registro em aberto há mais dias, com a placa | Sim |
+| **Reincidentes** | Placas com 3 ou mais entradas nos últimos 90 dias | Sim |
+
+**Gráficos e tabelas**
+
+| Visual | Service | O que mostra |
+| :--- | :--- | :--- |
+| Distribuição por status | [contar_por_status.py](src/services/dashboard/contar_por_status.py) | Barra única empilhada com a proporção de cada status |
+| Em Aberto por Tempo Parado | [agrupar_por_faixa_aging.py](src/services/dashboard/agrupar_por_faixa_aging.py) | Registros em aberto nas faixas 0–3, 4–7, 8–15 e 16+ dias |
+| Top 10 Placas por Dias Parados | [ranking_dias_parados.py](src/services/dashboard/ranking_dias_parados.py) | Soma dos dias de todos os registros da placa no filtro, com o número de ocorrências |
+| Manutenções por Tipo de Veículo | — | Os 10 tipos com mais registros |
+| Maiores Tempos em Aberto | — | Os 8 registros abertos há mais tempo |
+| Registros Filtrados | — | Tabela completa com os dias já atualizados |
+
+Os dias vêm de [calcular_dias_corridos.py](src/services/dashboard/calcular_dias_corridos.py), que reaproveita a mesma regra da tabela do app (`calcular_dias_dinamicos`). Por isso os números das duas telas batem.
+
+#### Panorama da Frota
+
+- **Filtros:** busca por placa ou descrição, tipo/marca e situação (ativo/inativo).
+- **KPIs:** total de veículos, ativos, inativos e número de categorias.
+- **Gráficos:** veículos por categoria e situação por categoria (ativo × inativo empilhado).
+- **Tabela:** relação dos veículos com placa, tipo, descrição, última KM, data de cadastro e status.
+
+### Visual
+
+| Elemento | Definição |
+| :--- | :--- |
+| Fundo / painéis | `#D5DFE8` / `#EAEFF5`, com borda `#94A3B8` |
+| Tema | Passado por argumento ao iniciar o Streamlit (`--theme.primaryColor #4CAF50`, etc.) e completado por CSS próprio no script |
+| Cores por status | Agendado `#0284C7` · Em manutenção `#F59E0B` · Finalizado `#4CAF50` · Sinistro `#DC2626` |
+| Cores por faixa de tempo | 0–3 verde · 4–7 âmbar · 8–15 laranja · 16+ vermelho |
+| Gráficos | Barras horizontais com o valor na ponta. Não há gráfico de pizza |
+| Ícones | Material (`:material/...:`) |
+
+### Rodar só o dashboard
+
+```bash
+python src/main.py --run-streamlit
+```
+
+O Streamlit abre na porta padrão dele (8501). A porta 8505 é a que o app passa ao iniciar o servidor.
+
+---
+
+## 10. Dados, logs e backups
 
 | Caminho | Conteúdo |
 | :--- | :--- |
@@ -284,7 +360,7 @@ O app permite **só uma instância aberta** por vez (`QLockFile`).
 
 ---
 
-## 10. Testes
+## 11. Testes
 
 ```bash
 pytest
@@ -294,7 +370,7 @@ Os testes ficam em [tests/](tests/) e cobrem banco, veículos, destinos, notas, 
 
 ---
 
-## 11. Solução de problemas
+## 12. Solução de problemas
 
 | Situação | O que verificar |
 | :--- | :--- |
@@ -307,7 +383,7 @@ Os testes ficam em [tests/](tests/) e cobrem banco, veículos, destinos, notas, 
 
 ---
 
-## 12. Pendências conhecidas
+## 13. Pendências conhecidas
 
 - **Banco versionado:** o `data/sistema_als.db` ainda está versionado, apesar de constar no `.gitignore`, e o workflow o empacota no instalador. Antes de publicar Releases, use um banco sem dados reais ou crie o banco vazio na primeira execução, e tire o arquivo do git com `git rm --cached data/sistema_als.db`.
 - **Testes só no release:** o CI roda os testes apenas em tags. Um workflow em `push`/`pull_request` na `main` anteciparia os erros.
